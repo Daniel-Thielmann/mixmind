@@ -189,3 +189,4 @@ temp/
 *.bak
 *.tmp
 *.swp
+*.pyc
