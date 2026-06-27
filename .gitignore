@@ -190,3 +190,9 @@ temp/
 *.tmp
 *.swp
 *.pyc
+*.github
+*.continue
+
+uploads/
+processed/
+temp/

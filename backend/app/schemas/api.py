@@ -1,4 +1,6 @@
-from pydantic import BaseModel
+from pydantic import BaseModel, Field
+
+from app.schemas.audio import AudioAnalysis
 
 
 class ApiResponse(BaseModel):
@@ -8,16 +10,8 @@ class ApiResponse(BaseModel):
     message: str
 
 
-class UploadedTrack(BaseModel):
-    """Metadata for an uploaded track."""
-
-    filename: str
-    stored_as: str
-    status: str
-
-
 class UploadAnalysisResponse(ApiResponse):
-    """Response returned after uploading the two tracks."""
+    """Response returned after analyzing the uploaded tracks."""
 
-    track_a: UploadedTrack
-    track_b: UploadedTrack
+    track_a: AudioAnalysis = Field(description="Analysis results for track A.")
+    track_b: AudioAnalysis = Field(description="Analysis results for track B.")

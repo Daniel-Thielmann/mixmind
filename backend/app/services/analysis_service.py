@@ -1,55 +1,52 @@
 from fastapi import UploadFile
 
 from app.audio.services.analyzer import AudioAnalyzer
-from app.audio.services.converter import AudioConverter
-from app.schemas.api import UploadAnalysisResponse, UploadedTrack
-from app.services.recommendation_service import RecommendationService
-from backend.app.services.infrastructure.storage_service import StorageService, storage_service
+from app.schemas.api import UploadAnalysisResponse
+from app.services.infrastructure.storage_service import (
+    StorageService,
+    storage_service,
+)
 
 
 class AnalysisService:
     """
     Orchestrates the analysis pipeline.
 
-    Today it only stores uploaded files.
-    The converter, analyzer and recommendation service are wired here so the
-    endpoint stays unaware of the downstream pipeline.
+    It stores the uploaded files and delegates audio extraction to the
+    analyzer. Future pipeline stages can be introduced here without changing
+    the endpoint contract.
     """
 
     def __init__(
         self,
         storage: StorageService = storage_service,
-        converter: AudioConverter | None = None,
         analyzer: AudioAnalyzer | None = None,
-        recommendation_service: RecommendationService | None = None,
     ) -> None:
         self._storage = storage
-        self._converter = converter or AudioConverter()
         self._analyzer = analyzer or AudioAnalyzer()
-        self._recommendation_service = recommendation_service or RecommendationService()
 
     def analyze(
         self,
         track_a: UploadFile,
         track_b: UploadFile,
     ) -> UploadAnalysisResponse:
+        """Store both uploads, analyze them, and return the API response."""
 
         path_a = self._storage.save_audio(track_a)
         path_b = self._storage.save_audio(track_b)
 
+        analysis_a = self._analyzer.analyze(path_a).model_copy(
+            update={"filename": track_a.filename or ""}
+        )
+        analysis_b = self._analyzer.analyze(path_b).model_copy(
+            update={"filename": track_b.filename or ""}
+        )
+
         return UploadAnalysisResponse(
             status="success",
-            message="Tracks uploaded successfully",
-            track_a=UploadedTrack(
-                filename=track_a.filename or "",
-                stored_as=path_a.name,
-                status="uploaded",
-            ),
-            track_b=UploadedTrack(
-                filename=track_b.filename or "",
-                stored_as=path_b.name,
-                status="uploaded",
-            ),
+            message="Tracks analyzed successfully",
+            track_a=analysis_a,
+            track_b=analysis_b,
         )
 
 

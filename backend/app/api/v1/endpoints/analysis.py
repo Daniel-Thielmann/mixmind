@@ -23,4 +23,4 @@ async def analyze_tracks(
     track_a: UploadFile = File(...),
     track_b: UploadFile = File(...),
 ) -> UploadAnalysisResponse:
-    return analysis_service.upload_tracks(track_a, track_b)
+    return analysis_service.analyze(track_a, track_b)

@@ -1,24 +1,11 @@
-from pydantic import BaseModel
+from pydantic import BaseModel, Field
 
 
 class AudioAnalysis(BaseModel):
     """Audio metrics extracted from a track."""
 
-    filename: str
-    duration: float
-    bpm: float
-    energy: float
-    sample_rate: intfrom pydantic import BaseModel
-
-
-class AudioAnalysis(BaseModel):
-
-    filename: str
-
-    duration: float
-
-    bpm: float
-
-    energy: float
-
-    sample_rate: int
+    filename: str = Field(description="Original filename of the uploaded track.")
+    duration: float = Field(description="Track duration in seconds.")
+    sample_rate: int = Field(description="Audio sample rate in Hertz.")
+    bpm: float = Field(description="Estimated tempo in beats per minute.")
+    energy: float = Field(description="Average RMS energy of the track.")
