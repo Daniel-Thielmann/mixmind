@@ -1,82 +1,402 @@
-# MixMind AI
+# 🎧 MixMind
 
-[![Python](https://img.shields.io/badge/Python-3.12-3776AB)](https://www.python.org/)
-[![FastAPI](https://img.shields.io/badge/FastAPI-005571?logo=fastapi)](https://fastapi.tiangolo.com/)
-[![License](https://img.shields.io/badge/License-MIT-green)](LICENSE)
-[![Build](https://img.shields.io/badge/Build-GitHub%20Actions-2088FF)](.github/workflows/backend.yml)
-[![Ruff](https://img.shields.io/badge/Lint-Ruff-2C7A7B)](https://docs.astral.sh/ruff/)
+> **AI-powered DJ Track Analysis Platform**
+>
+> Analyze audio tracks, extract musical features and discover the best transitions between songs.
 
-MixMind AI is a FastAPI and Next.js project for analyzing electronic music tracks
-and calculating compatibility scores for DJ transitions.
+<p align="center">
 
-## Architecture
+![Python](https://img.shields.io/badge/Python-3.12-blue)
 
-The backend follows a layered architecture:
+![FastAPI](https://img.shields.io/badge/FastAPI-0.115-green)
 
-HTTP Request -> API Endpoint -> Application Service -> Infrastructure Service ->
-Audio Processing -> Domain Models -> JSON Response
+![License](https://img.shields.io/badge/license-MIT-blue)
 
-Current backend flow:
+![Tests](https://img.shields.io/badge/tests-pytest-success)
 
-Upload -> StorageService -> AudioAnalyzer -> CompatibilityService ->
-UploadAnalysisResponse
+![Coverage](https://img.shields.io/badge/coverage-72%25-success)
 
-## Technologies
+![Status](https://img.shields.io/badge/status-In%20Development-orange)
 
-- Python 3.12
+</p>
+
+---
+
+# Overview
+
+MixMind is an audio analysis platform designed to assist DJs and music producers by automatically extracting relevant musical information from tracks.
+
+Instead of manually analyzing songs, the platform performs Digital Signal Processing (DSP) techniques to compute musical features and estimate how compatible two tracks are for mixing.
+
+This project is being developed as the practical project for the **DCC082 – Sistemas Multimídia** course at the **Federal University of Juiz de Fora (UFJF)**.
+
+---
+
+# Features
+
+Current features include:
+
+- Audio upload
+- Audio analysis using Librosa
+- BPM estimation
+- RMS Energy calculation
+- Duration extraction
+- Compatibility Engine
+- REST API with FastAPI
+- Interactive Swagger documentation
+- Automated tests
+- Continuous Integration
+- Code Quality Pipeline
+
+---
+
+# Example Response
+
+```json
+{
+  "track_a": {
+    "filename": "Piece Of Your Heart.mp3",
+    "duration": 152.91,
+    "sample_rate": 44100,
+    "bpm": 123.05,
+    "energy": 0.2403
+  },
+  "track_b": {
+    "filename": "Stolen Dance.mp3",
+    "duration": 121.87,
+    "sample_rate": 44100,
+    "bpm": 129.2,
+    "energy": 0.2639
+  },
+  "compatibility": {
+    "compatibility_score": 60.1,
+    "tempo_difference": 6.15,
+    "energy_difference": 0.0236,
+    "tempo_match": "Good",
+    "energy_match": "Very Good",
+    "overall_rating": "Good"
+  }
+}
+```
+
+---
+
+# Architecture
+
+```text
+                    User
+
+                      │
+
+                      ▼
+
+               FastAPI REST API
+
+                      │
+
+                      ▼
+
+              AnalysisService
+
+          ┌───────────┴───────────┐
+
+          ▼                       ▼
+
+   StorageService         AudioAnalyzer
+
+                                  │
+
+                                  ▼
+
+                           Librosa DSP
+
+                                  │
+
+                                  ▼
+
+                     CompatibilityService
+
+                                  │
+
+                                  ▼
+
+                           JSON Response
+```
+
+---
+
+# Tech Stack
+
+## Backend
+
+- Python
 - FastAPI
-- Pydantic v2
+- Pydantic
+- Uvicorn
+
+## Audio Processing
+
 - Librosa
 - NumPy
 - SciPy
-- Black
-- Ruff
-- isort
-- pytest
-- pre-commit
+- SoundFile
 
-## How to Run
+## Testing
+
+- pytest
+- pytest-cov
+
+## Quality
+
+- Ruff
+- Black
+- Pre-commit
+
+## CI/CD
+
+- GitHub Actions
+
+---
+
+# Project Structure
+
+```text
+MixMind-AI/
+
+├── backend/
+│
+├── app/
+│   ├── api/
+│   ├── audio/
+│   ├── core/
+│   ├── schemas/
+│   ├── services/
+│   └── utils/
+│
+├── tests/
+│
+├── uploads/
+├── processed/
+├── temp/
+│
+├── requirements.txt
+└── requirements-dev.txt
+
+├── frontend/
+
+├── docs/
+
+├── README.md
+```
+
+---
+
+# Audio Processing Pipeline
+
+```
+Upload
+
+↓
+
+Storage
+
+↓
+
+Librosa
+
+↓
+
+Feature Extraction
+
+↓
+
+Compatibility Analysis
+
+↓
+
+REST Response
+```
+
+---
+
+# Musical Features
+
+Current DSP features:
+
+- BPM estimation
+- RMS Energy
+- Duration
+- Sample Rate
+
+Upcoming features:
+
+- Waveform Generation
+- Spectrogram
+- MFCC
+- Chroma Features
+- Harmonic/Percussive Separation
+- Key Detection
+- Camelot Wheel Compatibility
+
+---
+
+# Running Locally
+
+Clone the repository
 
 ```bash
-cd backend
+git clone https://github.com/Daniel-Thielmann/MixMind-AI.git
+```
+
+Enter the project
+
+```bash
+cd MixMind-AI/backend
+```
+
+Create virtual environment
+
+```bash
 python -m venv .venv
+```
+
+Activate
+
+Windows
+
+```bash
 .venv\Scripts\activate
-pip install -r requirements.txt -r requirements-dev.txt
+```
+
+Linux / macOS
+
+```bash
+source .venv/bin/activate
+```
+
+Install dependencies
+
+```bash
+pip install -r requirements.txt
+```
+
+Run the server
+
+```bash
 uvicorn app.main:app --reload
 ```
 
-Open the API docs at `http://127.0.0.1:8000/docs`.
+Swagger
 
-## How to Test
+```
+http://localhost:8000/docs
+```
+
+---
+
+# Running Tests
 
 ```bash
-cd backend
 pytest
+```
+
+Coverage
+
+```bash
+pytest --cov
+```
+
+---
+
+# Code Quality
+
+Run Ruff
+
+```bash
 ruff check .
+```
+
+Format
+
+```bash
 black .
-isort .
 ```
 
-## Roadmap
+Run pre-commit
 
-- v0.3: Audio Analysis stabilization
-- v0.4: Recommendation Engine
-- v0.5: Dashboard
-- v0.6: Waveform visualization
-- v0.7: Spectrogram visualization
-- v0.8: FFmpeg integration
-
-## Project Structure
-
-```text
-backend/
-  app/
-    api/
-    audio/
-    core/
-    schemas/
-    services/
-    utils/
-  tests/
-frontend/
+```bash
+pre-commit run --all-files
 ```
+
+---
+
+# Roadmap
+
+## Phase 1
+
+- [x] Project structure
+- [x] REST API
+- [x] Audio upload
+- [x] BPM extraction
+- [x] RMS Energy
+- [x] Compatibility Engine
+
+## Phase 2
+
+- [ ] Waveform generation
+- [ ] Spectrogram generation
+- [ ] Dashboard API
+- [ ] Audio normalization (FFmpeg)
+
+## Phase 3
+
+- [ ] React/Next.js frontend
+- [ ] Track comparison interface
+- [ ] Visualization dashboard
+
+## Phase 4
+
+- [ ] AI Recommendation Engine
+- [ ] Key Detection
+- [ ] Camelot Wheel
+- [ ] Transition Suggestions
+- [ ] Mix Quality Score
+
+---
+
+# Academic Context
+
+This project is being developed for the course:
+
+**DCC082 – Sistemas Multimídia**
+
+Federal University of Juiz de Fora (UFJF)
+
+The goal is to demonstrate the integration of multimedia techniques, digital audio processing and modern software engineering practices.
+
+---
+
+# Contributing
+
+Contributions are welcome.
+
+Before contributing:
+
+- Follow the coding standards.
+- Run all tests.
+- Execute pre-commit hooks.
+- Open a Pull Request.
+
+---
+
+# License
+
+This project is licensed under the MIT License.
+
+---
+
+<p align="center">
+
+Developed by Daniel Alves Thielmann
+
+</p>
