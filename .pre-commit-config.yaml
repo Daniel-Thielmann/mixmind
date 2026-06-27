@@ -1,16 +1,13 @@
 repos:
-  - repo: local
+  - repo: https://github.com/astral-sh/ruff-pre-commit
+    rev: v0.12.9
     hooks:
       - id: ruff-check
-        name: Ruff
-        entry: ruff check --fix
-        language: system
-        types: [python]
-        files: ^backend/.*\.py$
+        args: [--fix]
 
+      - id: ruff-format
+
+  - repo: https://github.com/psf/black
+    rev: 25.1.0
+    hooks:
       - id: black
-        name: Black
-        entry: black
-        language: system
-        types: [python]
-        files: ^backend/.*\.py$
