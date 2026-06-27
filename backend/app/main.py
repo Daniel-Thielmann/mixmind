@@ -1,10 +1,9 @@
-from contextlib import asynccontextmanager
 from collections.abc import AsyncIterator
-
-from fastapi import FastAPI
+from contextlib import asynccontextmanager
 
 from app.api.router import api_router
 from app.core.config import settings
+from fastapi import FastAPI
 
 
 @asynccontextmanager

@@ -193,6 +193,12 @@ temp/
 *.github
 *.continue
 
-uploads/
-processed/
-temp/
+uploads/*
+!uploads/.gitkeep
+processed/*
+!processed/.gitkeep
+temp/*
+!temp/.gitkeep
+
+__pycache__/
+*.py[cod]

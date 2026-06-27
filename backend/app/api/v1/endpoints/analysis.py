@@ -1,7 +1,6 @@
-from fastapi import APIRouter, File, UploadFile
-
 from app.schemas.api import UploadAnalysisResponse
 from app.services.analysis_service import analysis_service
+from fastapi import APIRouter, File, UploadFile
 
 router = APIRouter()
 

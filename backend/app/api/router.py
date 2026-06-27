@@ -1,6 +1,5 @@
-from fastapi import APIRouter
-
 from app.api.v1.endpoints.analysis import router as analysis_router
+from fastapi import APIRouter
 
 api_router = APIRouter()
 

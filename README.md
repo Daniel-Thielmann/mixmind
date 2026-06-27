@@ -1,430 +1,82 @@
-```markdown
-<div align="center">
+# MixMind AI
 
-# 🎧 MixMind AI
+[![Python](https://img.shields.io/badge/Python-3.12-3776AB)](https://www.python.org/)
+[![FastAPI](https://img.shields.io/badge/FastAPI-005571?logo=fastapi)](https://fastapi.tiangolo.com/)
+[![License](https://img.shields.io/badge/License-MIT-green)](LICENSE)
+[![Build](https://img.shields.io/badge/Build-GitHub%20Actions-2088FF)](.github/workflows/backend.yml)
+[![Ruff](https://img.shields.io/badge/Lint-Ruff-2C7A7B)](https://docs.astral.sh/ruff/)
 
-### AI-powered Assistant for Intelligent DJ Mixing
+MixMind AI is a FastAPI and Next.js project for analyzing electronic music tracks
+and calculating compatibility scores for DJ transitions.
 
-An intelligent multimedia platform capable of analyzing electronic music tracks and recommending harmonic and rhythmic transitions using Digital Signal Processing (DSP), Music Information Retrieval (MIR) and Artificial Intelligence.
+## Architecture
 
----
+The backend follows a layered architecture:
 
-**Federal University of Juiz de Fora (UFJF)**  
-**DCC082 – Sistemas Multimídia**
+HTTP Request -> API Endpoint -> Application Service -> Infrastructure Service ->
+Audio Processing -> Domain Models -> JSON Response
 
-**Academic Project – Trabalho Prático 2**
+Current backend flow:
 
-Developed by **Daniel Alves Thielmann**
+Upload -> StorageService -> AudioAnalyzer -> CompatibilityService ->
+UploadAnalysisResponse
 
-</div>
+## Technologies
 
----
-
-## 📖 About the Project
-
-MixMind AI is a web application designed to assist DJs in selecting compatible tracks and creating smoother transitions.
-
-Instead of manually analyzing hundreds of songs, the user uploads two tracks and the system automatically extracts musical features such as:
-
-- 🎵 BPM
-- 🎼 Musical Key
-- ⚡ Energy
-- 🎧 Waveform
-- 📊 Spectral Information
-- 🥁 Beat Structure
-
-Using these characteristics, the platform calculates a compatibility score and recommends the best transition point between the songs.
-
-This project was proposed for the Multimedia Systems course and aims to integrate multiple concepts studied during the semester into a single multimedia application.
-
----
-
-# 🎯 Objectives
-
-The main objective is to demonstrate the integration of multimedia technologies in a practical application.
-
-Specifically, the project aims to:
-
-- Develop a modern Web application.
-- Process digital audio files.
-- Apply Music Information Retrieval techniques.
-- Extract musical characteristics automatically.
-- Recommend transitions between electronic music tracks.
-- Demonstrate the use of Artificial Intelligence in multimedia.
-
----
-
-# ✅ Requirements Covered
-
-According to the course proposal, the application must satisfy at least two multimedia requirements.
-
-MixMind AI satisfies four:
-
-| Requirement | Status |
-|------------|---------|
-| Web Application | ✅ |
-| Audio Processing | ✅ |
-| Artificial Intelligence | ✅ |
-| Audio Encoding / Transcoding | ✅ |
-
----
-
-# 🧠 How It Works
-
-The complete processing pipeline is illustrated below.
-
-```
-
-User Upload
-
-```
-    │
-
-    ▼
-```
-
-FFmpeg Audio Conversion
-
-```
-    │
-
-    ▼
-```
-
-Feature Extraction
-
-• BPM
-• Key
-• Energy
-• Spectrogram
-• Beat Tracking
-
-```
-    │
-
-    ▼
-```
-
-Recommendation Engine
-
-```
-    │
-
-    ▼
-```
-
-Compatibility Score
-
-```
-    │
-
-    ▼
-```
-
-Interactive Dashboard
-
-```
-
----
-
-# 🏗 System Architecture
-
-```
-
-```
-            Frontend
-    (Next.js + React)
-
-           │
-
-           ▼
-
-    FastAPI Backend
-
-           │
-
-┌──────────┼──────────┐
-
-▼          ▼          ▼
-```
-
-FFmpeg    Librosa    Essentia
-
-```
-│          │          │
-
-└──────────┼──────────┘
-
-           ▼
-
-  Recommendation Engine
-
-           ▼
-
-  Analysis JSON Response
-
-           ▼
-
-  Interactive Dashboard
-```
-
-```
-
----
-
-# 🚀 Main Features
-
-### Upload audio tracks
-
-Upload two music files.
-
----
-
-### Automatic BPM Detection
-
-Estimate the tempo of each track.
-
----
-
-### Musical Key Detection
-
-Estimate harmonic compatibility.
-
----
-
-### Energy Estimation
-
-Measure the perceived energy of each song.
-
----
-
-### Compatibility Analysis
-
-Generate an overall compatibility score.
-
----
-
-### Mix Recommendation
-
-Suggest the best transition point between songs.
-
----
-
-### Audio Preview *(Future)*
-
-Automatically generate a preview of the recommended mix.
-
----
-
-# 🖥 Planned User Interface
-
-```
-
----
-
-```
-           MixMind AI
-```
-
----
-
-Track A
-
-Animals.mp3
-
-128 BPM
-
-11A
-
-Energy 87
-
-████████████
-
----
-
-Track B
-
-Spaceman.mp3
-
-128 BPM
-
-11B
-
-Energy 91
-
-█████████████
-
----
-
-Compatibility
-
-92%
-
-⭐⭐⭐⭐☆
-
-Recommended Mix
-
-02:14
-
-Crossfade
-
-16 seconds
-
-[ ▶ Preview ]
-
----
-
-```
-
----
-
-# 🛠 Technology Stack
-
-## Frontend
-
-- Next.js
-- React
-- TypeScript
-- Tailwind CSS
-- shadcn/ui
-
----
-
-## Backend
-
-- Python
+- Python 3.12
 - FastAPI
-
----
-
-## Multimedia
-
-- FFmpeg
-
----
-
-## Audio Processing
-
+- Pydantic v2
 - Librosa
-- Essentia
-
----
-
-## Machine Learning
-
-- Scikit-learn
 - NumPy
 - SciPy
+- Black
+- Ruff
+- isort
+- pytest
+- pre-commit
 
----
+## How to Run
 
-# 📂 Project Structure
-
+```bash
+cd backend
+python -m venv .venv
+.venv\Scripts\activate
+pip install -r requirements.txt -r requirements-dev.txt
+uvicorn app.main:app --reload
 ```
 
-MixMind-AI/
+Open the API docs at `http://127.0.0.1:8000/docs`.
 
+## How to Test
+
+```bash
+cd backend
+pytest
+ruff check .
+black .
+isort .
+```
+
+## Roadmap
+
+- v0.3: Audio Analysis stabilization
+- v0.4: Recommendation Engine
+- v0.5: Dashboard
+- v0.6: Waveform visualization
+- v0.7: Spectrogram visualization
+- v0.8: FFmpeg integration
+
+## Project Structure
+
+```text
 backend/
-
-```
-app/
-
+  app/
     api/
-
-    services/
-
-    models/
-
+    audio/
+    core/
     schemas/
-
+    services/
     utils/
-```
-
+  tests/
 frontend/
-
-```
-app/
-
-components/
-
-hooks/
-
-services/
-```
-
-docs/
-
-assets/
-
-README.md
-
-```
-
----
-
-# 📅 Development Roadmap
-
-## Sprint 0
-
-- [x] Project proposal
-- [x] System architecture
-- [x] Repository creation
-- [ ] README
-- [ ] Documentation
-
----
-
-## Sprint 1
-
-- [ ] FastAPI backend
-- [ ] Next.js frontend
-- [ ] Upload endpoint
-
----
-
-## Sprint 2
-
-- [ ] FFmpeg integration
-- [ ] Audio conversion
-- [ ] Waveform generation
-
----
-
-## Sprint 3
-
-- [ ] BPM extraction
-- [ ] Musical Key detection
-- [ ] Energy estimation
-
----
-
-## Sprint 4
-
-- [ ] Recommendation engine
-- [ ] Dashboard
-
----
-
-## Sprint 5
-
-- [ ] Preview generation
-- [ ] Final presentation
-
----
-
-# 📚 Academic Context
-
-This project is being developed as the final project for the course:
-
-**DCC082 – Sistemas Multimídia**
-
-Federal University of Juiz de Fora (UFJF)
-
-Professor: Marcelo Moreno
-
----
-
-# 📄 License
-
-This project is licensed under the MIT License.
 ```
