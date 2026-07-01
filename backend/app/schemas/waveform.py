@@ -5,6 +5,7 @@ class WaveformResult(BaseModel):
     """Metadata for a generated waveform image."""
 
     image_path: str = Field(description="Relative path to the generated PNG.")
+    url: str = Field(description="Public URL for the generated PNG.")
     width: int = Field(description="Image width in pixels.")
     height: int = Field(description="Image height in pixels.")
 

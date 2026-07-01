@@ -28,6 +28,7 @@ def test_analyze_tracks_returns_analysis_response(monkeypatch) -> None:
     expected = UploadAnalysisResponse(
         status="success",
         message="Tracks analyzed successfully",
+        analysis_id="test-session-123",
         track_a=AudioAnalysis(
             filename="Animals.mp3",
             duration=3.0,
@@ -52,24 +53,28 @@ def test_analyze_tracks_returns_analysis_response(monkeypatch) -> None:
         ),
         waveforms=Waveforms(
             track_a=WaveformResult(
-                image_path="processed/waveforms/a.png",
+                image_path="processed/analysis/test-session-123/waveform_track_a.png",
+                url="http://localhost:8000/static/analysis/test-session-123/waveform_track_a.png",
                 width=1200,
                 height=300,
             ),
             track_b=WaveformResult(
-                image_path="processed/waveforms/b.png",
+                image_path="processed/analysis/test-session-123/waveform_track_b.png",
+                url="http://localhost:8000/static/analysis/test-session-123/waveform_track_b.png",
                 width=1200,
                 height=300,
             ),
         ),
         spectrograms=Spectrograms(
             track_a=SpectrogramResult(
-                image_path="processed/spectrograms/a.png",
+                image_path="processed/analysis/test-session-123/spectrogram_track_a.png",
+                url="http://localhost:8000/static/analysis/test-session-123/spectrogram_track_a.png",
                 width=1200,
                 height=500,
             ),
             track_b=SpectrogramResult(
-                image_path="processed/spectrograms/b.png",
+                image_path="processed/analysis/test-session-123/spectrogram_track_b.png",
+                url="http://localhost:8000/static/analysis/test-session-123/spectrogram_track_b.png",
                 width=1200,
                 height=500,
             ),
@@ -91,6 +96,7 @@ def test_analyze_tracks_http_response_includes_spectrograms(monkeypatch) -> None
     expected = UploadAnalysisResponse(
         status="success",
         message="Tracks analyzed successfully",
+        analysis_id="test-session-456",
         track_a=AudioAnalysis(
             filename="Animals.mp3",
             duration=3.0,
@@ -115,24 +121,28 @@ def test_analyze_tracks_http_response_includes_spectrograms(monkeypatch) -> None
         ),
         waveforms=Waveforms(
             track_a=WaveformResult(
-                image_path="processed/waveforms/a.png",
+                image_path="processed/analysis/test-session-456/waveform_track_a.png",
+                url="http://localhost:8000/static/analysis/test-session-456/waveform_track_a.png",
                 width=1200,
                 height=300,
             ),
             track_b=WaveformResult(
-                image_path="processed/waveforms/b.png",
+                image_path="processed/analysis/test-session-456/waveform_track_b.png",
+                url="http://localhost:8000/static/analysis/test-session-456/waveform_track_b.png",
                 width=1200,
                 height=300,
             ),
         ),
         spectrograms=Spectrograms(
             track_a=SpectrogramResult(
-                image_path="processed/spectrograms/a.png",
+                image_path="processed/analysis/test-session-456/spectrogram_track_a.png",
+                url="http://localhost:8000/static/analysis/test-session-456/spectrogram_track_a.png",
                 width=1200,
                 height=500,
             ),
             track_b=SpectrogramResult(
-                image_path="processed/spectrograms/b.png",
+                image_path="processed/analysis/test-session-456/spectrogram_track_b.png",
+                url="http://localhost:8000/static/analysis/test-session-456/spectrogram_track_b.png",
                 width=1200,
                 height=500,
             ),
@@ -157,7 +167,8 @@ def test_analyze_tracks_http_response_includes_spectrograms(monkeypatch) -> None
     assert response.status_code == 200
     body = response.json()
     assert (
-        body["spectrograms"]["track_a"]["image_path"] == "processed/spectrograms/a.png"
+        body["spectrograms"]["track_a"]["image_path"]
+        == "processed/analysis/test-session-456/spectrogram_track_a.png"
     )
     assert body["spectrograms"]["track_a"]["width"] == 1200
     assert body["spectrograms"]["track_b"]["height"] == 500

@@ -54,10 +54,16 @@ class FakeWaveformGenerator:
         self._output_paths = output_paths
         self._index = 0
 
-    def generate(self, audio_path: Path) -> WaveformResult:
+    def generate(
+        self, audio_path: Path, analysis_id: str, track_label: str
+    ) -> WaveformResult:
         image_path = self._output_paths[self._index]
         self._index += 1
-        return WaveformResult(image_path=image_path, width=1200, height=300)
+        url = (
+            f"http://localhost:8000/static/analysis/{analysis_id}/"
+            f"waveform_track_{track_label}.png"
+        )
+        return WaveformResult(image_path=image_path, url=url, width=1200, height=300)
 
 
 class FakeSpectrogramGenerator:
@@ -65,10 +71,16 @@ class FakeSpectrogramGenerator:
         self._output_paths = output_paths
         self._index = 0
 
-    def generate(self, audio_path: Path) -> SpectrogramResult:
+    def generate(
+        self, audio_path: Path, analysis_id: str, track_label: str
+    ) -> SpectrogramResult:
         image_path = self._output_paths[self._index]
         self._index += 1
-        return SpectrogramResult(image_path=image_path, width=1200, height=500)
+        url = (
+            f"http://localhost:8000/static/analysis/{analysis_id}/"
+            f"spectrogram_track_{track_label}.png"
+        )
+        return SpectrogramResult(image_path=image_path, url=url, width=1200, height=500)
 
 
 def test_analysis_service_analyze_builds_complete_response(tmp_path) -> None:
@@ -80,14 +92,14 @@ def test_analysis_service_analyze_builds_complete_response(tmp_path) -> None:
         analyzer=FakeAudioAnalyzer(),
         waveform_service=FakeWaveformGenerator(
             [
-                "processed/waveforms/a.png",
-                "processed/waveforms/b.png",
+                "processed/analysis/test-session/waveform_track_a.png",
+                "processed/analysis/test-session/waveform_track_b.png",
             ]
         ),
         spectrogram_service=FakeSpectrogramGenerator(
             [
-                "processed/spectrograms/a.png",
-                "processed/spectrograms/b.png",
+                "processed/analysis/test-session/spectrogram_track_a.png",
+                "processed/analysis/test-session/spectrogram_track_b.png",
             ]
         ),
         compatibility=FakeCompatibilityService(),

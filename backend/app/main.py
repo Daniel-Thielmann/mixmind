@@ -4,6 +4,7 @@ from contextlib import asynccontextmanager
 from app.api.router import api_router
 from app.core.config import settings
 from fastapi import FastAPI
+from fastapi.staticfiles import StaticFiles
 
 
 @asynccontextmanager
@@ -23,6 +24,12 @@ AI-powered assistant for DJs capable of analyzing electronic music tracks
 using Digital Signal Processing (DSP) and Music Information Retrieval (MIR).
 """,
     lifespan=lifespan,
+)
+
+app.mount(
+    "/static",
+    StaticFiles(directory=str(settings.processed_path)),
+    name="static",
 )
 
 app.include_router(api_router, prefix="/api/v1")

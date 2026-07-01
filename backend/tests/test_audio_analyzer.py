@@ -1,8 +1,5 @@
-from pathlib import Path
-
 import numpy as np
 import soundfile as sf
-from app.audio.services import waveform as waveform_module
 from app.audio.services.analyzer import AudioAnalyzer
 from app.audio.services.waveform import WaveformGenerator
 
@@ -21,21 +18,32 @@ def test_waveform_generator_creates_png_and_directory(tmp_path, monkeypatch) -> 
     stereo = np.column_stack([waveform, waveform])
     sf.write(audio_path, stereo, sample_rate)
 
+    from app.audio.services import base_image_generator
+
     processed_root = tmp_path / "processed"
     monkeypatch.setattr(
-        waveform_module,
+        base_image_generator,
         "settings",
-        type("SettingsStub", (), {"processed_path": processed_root})(),
+        type(
+            "SettingsStub",
+            (),
+            {
+                "processed_path": processed_root,
+                "analysis_path": processed_root / "analysis",
+                "BASE_URL": "http://localhost:8000",
+            },
+        )(),
     )
 
     generator = WaveformGenerator()
-    result = generator.generate(audio_path)
+    analysis_id = "test-session-abc"
+    result = generator.generate(audio_path, analysis_id, "a")
 
-    generated_path = processed_root / "waveforms" / Path(result.image_path).name
+    generated_path = processed_root / "analysis" / analysis_id / "waveform_track_a.png"
 
-    assert processed_root.joinpath("waveforms").exists()
+    assert processed_root.joinpath("analysis", analysis_id).exists()
     assert generated_path.exists()
-    assert result.image_path.startswith("processed/waveforms/")
+    assert result.image_path == f"processed/analysis/{analysis_id}/waveform_track_a.png"
     assert result.width == 1200
     assert result.height == 300
 
