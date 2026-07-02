@@ -15,10 +15,28 @@ export interface CompatibilityResult {
   overall_rating: string;
 }
 
+export interface ImageAsset {
+  image_path: string;
+}
+
+export interface TrackMediaAssets {
+  track_a: ImageAsset;
+  track_b: ImageAsset;
+}
+
 export interface UploadAnalysisResponse {
   status: string;
   message: string;
   track_a: AudioAnalysis;
   track_b: AudioAnalysis;
   compatibility: CompatibilityResult;
+  waveforms: TrackMediaAssets;
+  spectrograms: TrackMediaAssets;
 }
+
+export type UploadStatus =
+  | "idle"
+  | "uploading"
+  | "processing"
+  | "success"
+  | "error";

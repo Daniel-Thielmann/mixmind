@@ -1,13 +1,17 @@
 from app.audio.services.analyzer import AudioAnalyzer
+from app.audio.services.spectrogram import (
+    SpectrogramGenerator,
+    spectrogram_generator,
+)
+from app.audio.services.waveform import WaveformGenerator, waveform_generator
 from app.schemas.api import UploadAnalysisResponse
+from app.schemas.spectrogram import Spectrograms
+from app.schemas.waveform import Waveforms
 from app.services.compatibility_service import (
     CompatibilityService,
     compatibility_service,
 )
-from app.services.infrastructure.storage_service import (
-    StorageService,
-    storage_service,
-)
+from app.services.infrastructure.storage_service import StorageService, storage_service
 from fastapi import UploadFile
 
 
@@ -24,10 +28,14 @@ class AnalysisService:
         self,
         storage: StorageService = storage_service,
         analyzer: AudioAnalyzer | None = None,
+        waveform_service: WaveformGenerator | None = None,
+        spectrogram_service: SpectrogramGenerator | None = None,
         compatibility: CompatibilityService | None = None,
     ) -> None:
         self._storage = storage
         self._analyzer = analyzer or AudioAnalyzer()
+        self._waveform_generator = waveform_service or waveform_generator
+        self._spectrogram_generator = spectrogram_service or spectrogram_generator
         self._compatibility = compatibility or compatibility_service
 
     def analyze(
@@ -46,6 +54,10 @@ class AnalysisService:
         analysis_b = self._analyzer.analyze(path_b).model_copy(
             update={"filename": track_b.filename or ""}
         )
+        waveform_a = self._waveform_generator.generate(path_a)
+        waveform_b = self._waveform_generator.generate(path_b)
+        spectrogram_a = self._spectrogram_generator.generate(path_a)
+        spectrogram_b = self._spectrogram_generator.generate(path_b)
         compatibility = self._compatibility.compare(analysis_a, analysis_b)
 
         return UploadAnalysisResponse(
@@ -54,6 +66,8 @@ class AnalysisService:
             track_a=analysis_a,
             track_b=analysis_b,
             compatibility=compatibility,
+            waveforms=Waveforms(track_a=waveform_a, track_b=waveform_b),
+            spectrograms=Spectrograms(track_a=spectrogram_a, track_b=spectrogram_b),
         )
 
 

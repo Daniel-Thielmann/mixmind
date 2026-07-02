@@ -1,15 +1,30 @@
 @import "tailwindcss";
 
 @theme {
-  --color-background: #0d1117;
-  --color-card: #161b22;
-  --color-primary: #06b6d4;
-  --color-success: #22c55e;
-  --color-danger: #ef4444;
-  --color-text: #ffffff;
-  --color-text-secondary: #9ca3af;
+  --color-background: #090b10;
+  --color-card: #131722;
+  --color-primary: #44f3d0;
+  --color-success: #21d969;
+  --color-danger: #ff5b6e;
+  --color-text: #f8fafc;
+  --color-text-secondary: #98a4b7;
 }
 
-button:hover {
-  transition: 0.2s;
+body {
+  background:
+    radial-gradient(
+      1200px 450px at 50% -150px,
+      rgba(68, 243, 208, 0.08),
+      transparent
+    ),
+    radial-gradient(
+      600px 300px at 20% 20%,
+      rgba(56, 189, 248, 0.06),
+      transparent
+    ),
+    var(--color-background);
+}
+
+button {
+  transition: 0.2s ease;
 }

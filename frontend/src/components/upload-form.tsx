@@ -2,110 +2,102 @@
 
 import { useState } from "react";
 
+import { Dashboard } from "@/components/home/dashboard";
+import { UploadCard } from "@/components/upload/upload-card";
+import { LoadingSpinner } from "@/components/ui/loading-spinner";
+import { apiService } from "@/services/api";
+import type { UploadAnalysisResponse, UploadStatus } from "@/types";
+
+const FRIENDLY_VALIDATION_MESSAGE =
+  "Please select both tracks before analyzing.";
+const FRIENDLY_ERROR_MESSAGE =
+  "Unable to analyze the selected tracks. Please try again.";
+
 export function UploadForm() {
-  const [trackA, setTrackA] = useState<string>();
-  const [trackB, setTrackB] = useState<string>();
-  const [loading, setLoading] = useState(false);
+  const [trackA, setTrackA] = useState<File>();
+  const [trackB, setTrackB] = useState<File>();
+  const [status, setStatus] = useState<UploadStatus>("idle");
+  const [error, setError] = useState<string | null>(null);
+  const [result, setResult] = useState<UploadAnalysisResponse | null>(null);
+  const isBusy = status === "uploading" || status === "processing";
 
   async function handleAnalyze() {
-    setLoading(true);
-    await new Promise((r) => setTimeout(r, 2000));
-    setLoading(false);
+    if (!trackA || !trackB) {
+      setResult(null);
+      setStatus("error");
+      setError(FRIENDLY_VALIDATION_MESSAGE);
+      return;
+    }
+
+    setStatus("uploading");
+    setError(null);
+    setResult(null);
+
+    await new Promise<void>((resolve) => {
+      window.setTimeout(resolve, 0);
+    });
+
+    try {
+      setStatus("processing");
+      const response = await apiService.analyzeTracks(trackA, trackB);
+      setResult(response);
+      setStatus("success");
+    } catch (requestError) {
+      setResult(null);
+      setStatus("error");
+      setError(
+        requestError instanceof Error
+          ? requestError.message
+          : FRIENDLY_ERROR_MESSAGE,
+      );
+    }
   }
 
   return (
-    <div className="mt-12 w-full space-y-6">
-      <div className="grid gap-6 md:grid-cols-2">
-        <UploadCard
-          label="Track A"
-          fileName={trackA}
-          onFile={(f) => setTrackA(f.name)}
-        />
-        <UploadCard
-          label="Track B"
-          fileName={trackB}
-          onFile={(f) => setTrackB(f.name)}
-        />
+    <section className="mt-12 w-full">
+      <div className="rounded-3xl border border-zinc-800 bg-card/65 p-6 shadow-[0_25px_80px_-45px_rgba(0,0,0,1)] backdrop-blur md:p-8">
+        <div className="grid gap-6 lg:grid-cols-2">
+          <UploadCard
+            label="Track A"
+            fileName={trackA?.name}
+            onFile={(file) => setTrackA(file)}
+          />
+          <UploadCard
+            label="Track B"
+            fileName={trackB?.name}
+            onFile={(file) => setTrackB(file)}
+          />
+        </div>
+
+        <button
+          onClick={handleAnalyze}
+          disabled={!trackA || !trackB || isBusy}
+          aria-busy={isBusy}
+          className="mt-6 flex w-full items-center justify-center gap-2 rounded-xl bg-success px-6 py-4 text-base font-bold text-black transition hover:brightness-110 disabled:cursor-not-allowed disabled:opacity-55"
+        >
+          {status === "processing" ? (
+            <>
+              <LoadingSpinner />
+              Analyzing tracks...
+            </>
+          ) : status === "uploading" ? (
+            <>
+              <LoadingSpinner />
+              Uploading tracks...
+            </>
+          ) : (
+            "Analyze"
+          )}
+        </button>
+
+        {error ? (
+          <p className="mt-4 rounded-xl border border-danger/40 bg-danger/10 px-4 py-3 text-sm text-red-200">
+            {error}
+          </p>
+        ) : null}
       </div>
 
-      <button
-        onClick={handleAnalyze}
-        disabled={!trackA || !trackB || loading}
-        className="w-full rounded-xl bg-success px-6 py-4 text-lg font-bold text-black transition hover:brightness-110 disabled:opacity-50"
-      >
-        {loading ? (
-          <span className="flex items-center justify-center gap-2">
-            <span className="h-5 w-5 animate-spin rounded-full border-2 border-black border-t-transparent" />
-            Analyzing...
-          </span>
-        ) : (
-          "Analyze Tracks"
-        )}
-      </button>
-    </div>
-  );
-}
-
-function UploadCard({
-  label,
-  fileName,
-  onFile,
-}: {
-  label: string;
-  fileName?: string;
-  onFile: (file: File) => void;
-}) {
-  const [dragging, setDragging] = useState(false);
-
-  function handleDrop(e: React.DragEvent) {
-    e.preventDefault();
-    setDragging(false);
-    const file = e.dataTransfer.files?.[0];
-    if (file) onFile(file);
-  }
-
-  function handleClick() {
-    const input = document.createElement("input");
-    input.type = "file";
-    input.accept = "audio/*";
-    input.onchange = () => {
-      const file = input.files?.[0];
-      if (file) onFile(file);
-    };
-    input.click();
-  }
-
-  return (
-    <div className="rounded-2xl border border-zinc-800 bg-card p-6 shadow-2xl md:p-8">
-      <h4 className="mb-6 text-xl font-semibold">{label}</h4>
-      <div
-        onDragOver={(e) => {
-          e.preventDefault();
-          setDragging(true);
-        }}
-        onDragLeave={() => setDragging(false)}
-        onDrop={handleDrop}
-        onClick={handleClick}
-        className={`flex cursor-pointer flex-col items-center justify-center rounded-xl border-2 border-dashed p-8 transition ${
-          dragging
-            ? "border-primary bg-primary/10"
-            : "border-zinc-700 bg-zinc-900/50 hover:border-zinc-600"
-        }`}
-      >
-        {fileName ? (
-          <p className="text-sm text-text">{fileName}</p>
-        ) : (
-          <>
-            <span className="mb-2 text-3xl text-zinc-600">+</span>
-            <p className="text-sm text-text-secondary">
-              Drop audio file here
-            </p>
-            <p className="mt-1 text-xs text-zinc-600">
-              or click to browse
-            </p>
-          </>
-        )}
-      </div>
-    </div>
+      {result ? <Dashboard result={result} /> : null}
+    </section>
   );
 }
