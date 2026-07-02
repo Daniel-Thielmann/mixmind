@@ -1,6 +1,10 @@
 import sys
 from pathlib import Path
 
+import matplotlib
+
+matplotlib.use("Agg")
+
 BACKEND_ROOT = Path(__file__).resolve().parents[1]
 
 if str(BACKEND_ROOT) not in sys.path:

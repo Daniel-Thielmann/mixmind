@@ -1,3 +1,6 @@
+import json
+from uuid import uuid4
+
 from app.audio.services.analyzer import AudioAnalyzer
 from app.audio.services.spectrogram import (
     SpectrogramGenerator,
@@ -19,9 +22,9 @@ class AnalysisService:
     """
     Orchestrates the analysis pipeline.
 
-    It stores the uploaded files and delegates audio extraction to the
-    analyzer. Future pipeline stages can be introduced here without changing
-    the endpoint contract.
+    Generates a unique session identifier for each analysis, persists all
+    artefacts inside a dedicated folder, and writes an ``analysis.json``
+    metadata file.
     """
 
     def __init__(
@@ -45,6 +48,8 @@ class AnalysisService:
     ) -> UploadAnalysisResponse:
         """Store both uploads, analyze them, and return the API response."""
 
+        analysis_id = uuid4().hex
+
         path_a = self._storage.save_audio(track_a)
         path_b = self._storage.save_audio(track_b)
 
@@ -60,9 +65,13 @@ class AnalysisService:
         spectrogram_b = self._spectrogram_generator.generate(path_b)
         compatibility = self._compatibility.compare(analysis_a, analysis_b)
 
-        return UploadAnalysisResponse(
+        waveforms = Waveforms(track_a=waveform_a, track_b=waveform_b)
+        spectrograms = Spectrograms(track_a=spectrogram_a, track_b=spectrogram_b)
+
+        response = UploadAnalysisResponse(
             status="success",
             message="Tracks analyzed successfully",
+            analysis_id=analysis_id,
             track_a=analysis_a,
             track_b=analysis_b,
             compatibility=compatibility,

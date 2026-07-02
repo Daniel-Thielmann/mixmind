@@ -3,10 +3,7 @@ from pathlib import Path
 
 from app.core.config import settings
 from app.core.exceptions import InvalidAudioFileException
-from app.utils.file_utils import (
-    generate_unique_filename,
-    is_allowed_audio,
-)
+from app.utils.file_utils import generate_unique_filename, is_allowed_audio
 from fastapi import UploadFile
 
 
