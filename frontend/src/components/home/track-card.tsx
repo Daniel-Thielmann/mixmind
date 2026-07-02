@@ -16,12 +16,25 @@ export function TrackCard({
 }: TrackCardProps) {
   return (
     <section className="rounded-2xl border border-zinc-800 bg-card/75 p-6 shadow-[0_20px_60px_-35px_rgba(0,0,0,0.9)] backdrop-blur md:p-7">
-      <header className="mb-5 flex items-center justify-between gap-3">
+      <header className="mb-5 flex items-center justify-between gap-3 flex-col">
         <h3 className="text-lg font-semibold text-text">{title}</h3>
-
-        <span className="truncate text-xs uppercase tracking-[0.2em] text-text-secondary">
+        <p
+          className="
+              mt-2
+              text-xs
+              uppercase
+              tracking-[0.15em]
+              text-text-secondary
+              leading-5
+              overflow-hidden
+              [display:-webkit-box]
+              [-webkit-line-clamp:2]
+              [-webkit-box-orient:vertical]
+              break-all
+            "
+        >
           {analysis.filename}
-        </span>
+        </p>
       </header>
 
       <dl className="grid grid-cols-3 gap-3 rounded-xl border border-zinc-800 bg-zinc-900/65 p-4 text-sm">
