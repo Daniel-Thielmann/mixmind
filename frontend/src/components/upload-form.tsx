@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 
 import { Dashboard } from "@/components/home/dashboard";
 import { UploadCard } from "@/components/upload/upload-card";
@@ -13,13 +13,34 @@ const FRIENDLY_VALIDATION_MESSAGE =
 const FRIENDLY_ERROR_MESSAGE =
   "Unable to analyze the selected tracks. Please try again.";
 
+const STEPS = [
+  { key: "upload", label: "Uploading tracks" },
+  { key: "process", label: "Processing audio" },
+  { key: "ai", label: "AI generating recommendation" },
+  { key: "done", label: "Complete" },
+] as const;
+
 export function UploadForm() {
   const [trackA, setTrackA] = useState<File>();
   const [trackB, setTrackB] = useState<File>();
   const [status, setStatus] = useState<UploadStatus>("idle");
   const [error, setError] = useState<string | null>(null);
   const [result, setResult] = useState<UploadAnalysisResponse | null>(null);
+  const [showAiPhase, setShowAiPhase] = useState(false);
+
   const isBusy = status === "uploading" || status === "processing";
+
+  useEffect(() => {
+    if (status !== "processing") return;
+    const t = setTimeout(() => setShowAiPhase(true), 3000);
+    return () => clearTimeout(t);
+  }, [status]);
+
+  // Derive the active step index from status + timer
+  let phase = 0;
+  if (status === "uploading") phase = 1;
+  else if (status === "processing") phase = showAiPhase ? 3 : 2;
+  else if (status === "success") phase = 4;
 
   async function handleAnalyze() {
     if (!trackA || !trackB) {
@@ -75,20 +96,57 @@ export function UploadForm() {
           aria-busy={isBusy}
           className="mt-6 flex w-full items-center justify-center gap-2 rounded-xl bg-success px-6 py-4 text-base font-bold text-black transition hover:brightness-110 disabled:cursor-not-allowed disabled:opacity-55"
         >
-          {status === "processing" ? (
+          {isBusy ? (
             <>
               <LoadingSpinner />
-              Analyzing tracks...
-            </>
-          ) : status === "uploading" ? (
-            <>
-              <LoadingSpinner />
-              Uploading tracks...
+              {STEPS[phase - 1]?.label ?? "Working..."}
             </>
           ) : (
             "Analyze"
           )}
         </button>
+
+        {/* Step indicator */}
+        {isBusy && (
+          <div className="mt-5 flex items-center justify-center gap-2">
+            {STEPS.map((step, i) => {
+              const stepNum = i + 1;
+              const isActive = phase >= stepNum;
+              const isCurrent = phase === stepNum;
+              return (
+                <div key={step.key} className="flex items-center gap-2">
+                  <div
+                    className={`flex items-center gap-1.5 rounded-full px-3 py-1 text-xs font-medium transition-all duration-300 ${
+                      isActive
+                        ? "bg-success/15 text-success"
+                        : "bg-zinc-800/50 text-text-secondary/50"
+                    } ${isCurrent ? "ring-1 ring-success/30" : ""}`}
+                  >
+                    {isActive && stepNum < 4 ? (
+                      <svg className="h-3 w-3" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}>
+                        <path strokeLinecap="round" strokeLinejoin="round" d="M5 13l4 4L19 7" />
+                      </svg>
+                    ) : isActive && stepNum === 4 ? (
+                      <svg className="h-3 w-3" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}>
+                        <path strokeLinecap="round" strokeLinejoin="round" d="M5 13l4 4L19 7" />
+                      </svg>
+                    ) : (
+                      <span className="h-3 w-3 rounded-full border border-current" />
+                    )}
+                    {step.label}
+                  </div>
+                  {i < STEPS.length - 1 && (
+                    <div
+                      className={`h-px w-4 transition-colors duration-300 ${
+                        phase > stepNum ? "bg-success/40" : "bg-zinc-700/40"
+                      }`}
+                    />
+                  )}
+                </div>
+              );
+            })}
+          </div>
+        )}
 
         {error ? (
           <p className="mt-4 rounded-xl border border-danger/40 bg-danger/10 px-4 py-3 text-sm text-red-200">

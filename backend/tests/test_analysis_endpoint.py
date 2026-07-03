@@ -1,6 +1,14 @@
 import asyncio
 from io import BytesIO
 
+from app.ai.schemas import (
+    AIRecommendationResponse,
+    CompatibilityAnalysis,
+    DJExecution,
+    EnergyAnalysis,
+    MixStrategy,
+    TempoAnalysis,
+)
 from app.api.v1.endpoints import analysis as analysis_module
 from app.main import app
 from app.schemas.api import UploadAnalysisResponse
@@ -51,16 +59,55 @@ def test_analyze_tracks_returns_analysis_response(monkeypatch) -> None:
             energy_match="Excellent",
             overall_rating="Excellent",
         ),
+        ai_recommendation=AIRecommendationResponse(
+            summary="Strong pairing with excellent compatibility.",
+            mix_direction="Blend Track B after a clean phrase-matched transition.",
+            transition_quality="High",
+            transition_type="Long harmonic blend",
+            confidence=96,
+            tempo_analysis=TempoAnalysis(
+                difference="Only 0.07 BPM apart — excellent tempo alignment.",
+                recommendation=(
+                    "Use key lock and blend directly with no tempo adjustment."
+                ),
+            ),
+            energy_analysis=EnergyAnalysis(
+                difference="Energy delta is minimal.",
+                recommendation="Maintain current energy curve.",
+            ),
+            compatibility_analysis=CompatibilityAnalysis(
+                score="96/100 — Excellent.",
+                interpretation="Backend rates this pair as Excellent.",
+            ),
+            mix_strategy=MixStrategy(
+                before_transition="Set a 4-beat loop on Track B.",
+                during_transition="Blend over 16 bars with EQ sweep.",
+                after_transition="Release loop and ride the groove.",
+            ),
+            dj_execution=DJExecution(
+                loop="4-beat loop on Track B entrance.",
+                eq="Reduce lows on Track A over 8 bars.",
+                filter="High-pass on Track A.",
+                tempo_fader="No adjustment needed.",
+                phrase_matching="Match 16-bar phrases.",
+                cue_point="Set cue on first beat of bar 33.",
+            ),
+            club_tip=(
+                "Enter on the next 16-bar phrase to keep the dance floor locked in."
+            ),
+            professional_notes="Textbook blend with no risks identified.",
+            risks=["None identified."],
+            best_use_case="Peak-time or warm-up.",
+            risk_level="Low",
+        ),
         waveforms=Waveforms(
             track_a=WaveformResult(
                 image_path="processed/analysis/test-session-123/waveform_track_a.png",
-                url="http://localhost:8000/static/analysis/test-session-123/waveform_track_a.png",
                 width=1200,
                 height=300,
             ),
             track_b=WaveformResult(
                 image_path="processed/analysis/test-session-123/waveform_track_b.png",
-                url="http://localhost:8000/static/analysis/test-session-123/waveform_track_b.png",
                 width=1200,
                 height=300,
             ),
@@ -68,13 +115,11 @@ def test_analyze_tracks_returns_analysis_response(monkeypatch) -> None:
         spectrograms=Spectrograms(
             track_a=SpectrogramResult(
                 image_path="processed/analysis/test-session-123/spectrogram_track_a.png",
-                url="http://localhost:8000/static/analysis/test-session-123/spectrogram_track_a.png",
                 width=1200,
                 height=500,
             ),
             track_b=SpectrogramResult(
                 image_path="processed/analysis/test-session-123/spectrogram_track_b.png",
-                url="http://localhost:8000/static/analysis/test-session-123/spectrogram_track_b.png",
                 width=1200,
                 height=500,
             ),
@@ -119,16 +164,55 @@ def test_analyze_tracks_http_response_includes_spectrograms(monkeypatch) -> None
             energy_match="Excellent",
             overall_rating="Excellent",
         ),
+        ai_recommendation=AIRecommendationResponse(
+            summary="Strong pairing with excellent compatibility.",
+            mix_direction="Blend Track B after a clean phrase-matched transition.",
+            transition_quality="High",
+            transition_type="Long harmonic blend",
+            confidence=96,
+            tempo_analysis=TempoAnalysis(
+                difference="Only 0.07 BPM apart — excellent tempo alignment.",
+                recommendation=(
+                    "Use key lock and blend directly with no tempo adjustment."
+                ),
+            ),
+            energy_analysis=EnergyAnalysis(
+                difference="Energy delta is minimal.",
+                recommendation="Maintain current energy curve.",
+            ),
+            compatibility_analysis=CompatibilityAnalysis(
+                score="96/100 — Excellent.",
+                interpretation="Backend rates this pair as Excellent.",
+            ),
+            mix_strategy=MixStrategy(
+                before_transition="Set a 4-beat loop on Track B.",
+                during_transition="Blend over 16 bars with EQ sweep.",
+                after_transition="Release loop and ride the groove.",
+            ),
+            dj_execution=DJExecution(
+                loop="4-beat loop on Track B entrance.",
+                eq="Reduce lows on Track A over 8 bars.",
+                filter="High-pass on Track A.",
+                tempo_fader="No adjustment needed.",
+                phrase_matching="Match 16-bar phrases.",
+                cue_point="Set cue on first beat of bar 33.",
+            ),
+            club_tip=(
+                "Enter on the next 16-bar phrase to keep the dance floor locked in."
+            ),
+            professional_notes="Textbook blend with no risks identified.",
+            risks=["None identified."],
+            best_use_case="Peak-time or warm-up.",
+            risk_level="Low",
+        ),
         waveforms=Waveforms(
             track_a=WaveformResult(
                 image_path="processed/analysis/test-session-456/waveform_track_a.png",
-                url="http://localhost:8000/static/analysis/test-session-456/waveform_track_a.png",
                 width=1200,
                 height=300,
             ),
             track_b=WaveformResult(
                 image_path="processed/analysis/test-session-456/waveform_track_b.png",
-                url="http://localhost:8000/static/analysis/test-session-456/waveform_track_b.png",
                 width=1200,
                 height=300,
             ),
@@ -136,13 +220,11 @@ def test_analyze_tracks_http_response_includes_spectrograms(monkeypatch) -> None
         spectrograms=Spectrograms(
             track_a=SpectrogramResult(
                 image_path="processed/analysis/test-session-456/spectrogram_track_a.png",
-                url="http://localhost:8000/static/analysis/test-session-456/spectrogram_track_a.png",
                 width=1200,
                 height=500,
             ),
             track_b=SpectrogramResult(
                 image_path="processed/analysis/test-session-456/spectrogram_track_b.png",
-                url="http://localhost:8000/static/analysis/test-session-456/spectrogram_track_b.png",
                 width=1200,
                 height=500,
             ),

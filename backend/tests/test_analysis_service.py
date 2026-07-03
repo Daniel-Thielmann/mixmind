@@ -1,6 +1,14 @@
 from io import BytesIO
 from pathlib import Path
 
+from app.ai.schemas import (
+    AIRecommendationResponse,
+    CompatibilityAnalysis,
+    DJExecution,
+    EnergyAnalysis,
+    MixStrategy,
+    TempoAnalysis,
+)
 from app.schemas.audio import AudioAnalysis
 from app.schemas.recommendation import CompatibilityResult
 from app.schemas.spectrogram import SpectrogramResult
@@ -54,16 +62,10 @@ class FakeWaveformGenerator:
         self._output_paths = output_paths
         self._index = 0
 
-    def generate(
-        self, audio_path: Path, analysis_id: str, track_label: str
-    ) -> WaveformResult:
+    def generate(self, audio_path: Path) -> WaveformResult:
         image_path = self._output_paths[self._index]
         self._index += 1
-        url = (
-            f"http://localhost:8000/static/analysis/{analysis_id}/"
-            f"waveform_track_{track_label}.png"
-        )
-        return WaveformResult(image_path=image_path, url=url, width=1200, height=300)
+        return WaveformResult(image_path=image_path, width=1200, height=300)
 
 
 class FakeSpectrogramGenerator:
@@ -71,16 +73,51 @@ class FakeSpectrogramGenerator:
         self._output_paths = output_paths
         self._index = 0
 
-    def generate(
-        self, audio_path: Path, analysis_id: str, track_label: str
-    ) -> SpectrogramResult:
+    def generate(self, audio_path: Path) -> SpectrogramResult:
         image_path = self._output_paths[self._index]
         self._index += 1
-        url = (
-            f"http://localhost:8000/static/analysis/{analysis_id}/"
-            f"spectrogram_track_{track_label}.png"
+        return SpectrogramResult(image_path=image_path, width=1200, height=500)
+
+
+class FakeDJAgent:
+    def recommend(self, recommendation) -> AIRecommendationResponse:
+        return AIRecommendationResponse(
+            summary="Strong pairing with excellent compatibility.",
+            mix_direction="Blend with a long harmonic transition.",
+            transition_quality="High",
+            transition_type="Long harmonic blend",
+            confidence=97,
+            tempo_analysis=TempoAnalysis(
+                difference="BPM difference is negligible.",
+                recommendation="No tempo adjustment needed.",
+            ),
+            energy_analysis=EnergyAnalysis(
+                difference="Energy delta is minimal.",
+                recommendation="Maintain current energy curve.",
+            ),
+            compatibility_analysis=CompatibilityAnalysis(
+                score="96/100 — Excellent.",
+                interpretation="Backend rates this pair as Excellent.",
+            ),
+            mix_strategy=MixStrategy(
+                before_transition="Set a 4-beat loop on Track B.",
+                during_transition="Blend over 16 bars with EQ sweep.",
+                after_transition="Release loop and ride the groove.",
+            ),
+            dj_execution=DJExecution(
+                loop="4-beat loop on Track B entrance.",
+                eq="Reduce lows on Track A over 8 bars.",
+                filter="High-pass on Track A.",
+                tempo_fader="No adjustment needed.",
+                phrase_matching="Match 16-bar phrases.",
+                cue_point="Set cue on first beat of bar 33.",
+            ),
+            club_tip="Enter on a phrase boundary to keep the floor engaged.",
+            professional_notes="Textbook blend with no risks identified.",
+            risks=["None identified."],
+            best_use_case="Peak-time or warm-up.",
+            risk_level="Low",
         )
-        return SpectrogramResult(image_path=image_path, url=url, width=1200, height=500)
 
 
 def test_analysis_service_analyze_builds_complete_response(tmp_path) -> None:
@@ -103,6 +140,7 @@ def test_analysis_service_analyze_builds_complete_response(tmp_path) -> None:
             ]
         ),
         compatibility=FakeCompatibilityService(),
+        ai_agent=FakeDJAgent(),
     )
 
     track_a = UploadFile(filename="Animals.mp3", file=BytesIO(b"a"))
@@ -114,6 +152,12 @@ def test_analysis_service_analyze_builds_complete_response(tmp_path) -> None:
     assert response.track_a.filename == "Animals.mp3"
     assert response.track_b.filename == "Spaceman.mp3"
     assert response.compatibility.compatibility_score == 96.0
+    assert response.ai_recommendation.confidence == 97
+    assert (
+        response.ai_recommendation.summary
+        == "Strong pairing with excellent compatibility."
+    )
+    assert response.ai_recommendation.risk_level == "Low"
     assert response.waveforms.track_a.width == 1200
     assert response.waveforms.track_b.height == 300
     assert response.spectrograms.track_a.width == 1200
