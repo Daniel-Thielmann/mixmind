@@ -3,6 +3,14 @@ from io import BytesIO
 from pathlib import Path
 from types import SimpleNamespace
 
+from app.ai.schemas import (
+    AIRecommendationResponse,
+    CompatibilityAnalysis,
+    DJExecution,
+    EnergyAnalysis,
+    MixStrategy,
+    TempoAnalysis,
+)
 from app.main import app
 from app.schemas.api import UploadAnalysisResponse
 from app.schemas.audio import AudioAnalysis
@@ -277,6 +285,36 @@ class TestPublicUrls:
                 energy_match="Excellent",
                 overall_rating="Excellent",
             ),
+            ai_recommendation=AIRecommendationResponse(
+                summary="",
+                mix_direction="",
+                transition_quality="",
+                transition_type="",
+                confidence=0,
+                tempo_analysis=TempoAnalysis(difference="", recommendation=""),
+                energy_analysis=EnergyAnalysis(difference="", recommendation=""),
+                compatibility_analysis=CompatibilityAnalysis(
+                    score="", interpretation=""
+                ),
+                mix_strategy=MixStrategy(
+                    before_transition="",
+                    during_transition="",
+                    after_transition="",
+                ),
+                dj_execution=DJExecution(
+                    loop="",
+                    eq="",
+                    filter="",
+                    tempo_fader="",
+                    phrase_matching="",
+                    cue_point="",
+                ),
+                club_tip="",
+                professional_notes="",
+                risks=[],
+                best_use_case="",
+                risk_level="",
+            ),
             waveforms=Waveforms(
                 track_a=WaveformResult(
                     image_path="a.png",
@@ -344,6 +382,36 @@ class TestPublicUrls:
                 tempo_match="Excellent",
                 energy_match="Excellent",
                 overall_rating="Excellent",
+            ),
+            ai_recommendation=AIRecommendationResponse(
+                summary="",
+                mix_direction="",
+                transition_quality="",
+                transition_type="",
+                confidence=0,
+                tempo_analysis=TempoAnalysis(difference="", recommendation=""),
+                energy_analysis=EnergyAnalysis(difference="", recommendation=""),
+                compatibility_analysis=CompatibilityAnalysis(
+                    score="", interpretation=""
+                ),
+                mix_strategy=MixStrategy(
+                    before_transition="",
+                    during_transition="",
+                    after_transition="",
+                ),
+                dj_execution=DJExecution(
+                    loop="",
+                    eq="",
+                    filter="",
+                    tempo_fader="",
+                    phrase_matching="",
+                    cue_point="",
+                ),
+                club_tip="",
+                professional_notes="",
+                risks=[],
+                best_use_case="",
+                risk_level="",
             ),
             waveforms=Waveforms(
                 track_a=WaveformResult(

@@ -1,3 +1,4 @@
+from app.ai.schemas import AIRecommendationResponse
 from app.schemas.audio import AudioAnalysis
 from app.schemas.recommendation import CompatibilityResult
 from app.schemas.spectrogram import Spectrograms
@@ -25,6 +26,10 @@ class UploadAnalysisResponse(ApiResponse):
         description="Heuristic compatibility result for the track pair."
     )
 
+    ai_recommendation: AIRecommendationResponse = Field(
+        description="Structured DJ assistant recommendation for the track pair."
+    )
+
     waveforms: Waveforms = Field(description="Generated waveform images.")
 
     spectrograms: Spectrograms = Field(description="Generated spectrogram images.")
@@ -37,5 +42,6 @@ class AnalysisMetadata(BaseModel):
     track_a: AudioAnalysis
     track_b: AudioAnalysis
     compatibility: CompatibilityResult
+    ai_recommendation: AIRecommendationResponse
     waveforms: Waveforms
     spectrograms: Spectrograms
