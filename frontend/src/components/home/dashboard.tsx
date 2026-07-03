@@ -1,5 +1,6 @@
 import type { UploadAnalysisResponse } from "@/types";
 
+import { AIRecommendationCard } from "@/components/ai/AIRecommendationCard";
 import { CompatibilityCard } from "./compatibility-card";
 import { TrackCard } from "./track-card";
 
@@ -32,6 +33,7 @@ export function Dashboard({ result }: DashboardProps) {
         />
       </div>
       <CompatibilityCard compatibility={result.compatibility} />
+      <AIRecommendationCard recommendation={result.ai_recommendation} />
     </section>
   );
 }
