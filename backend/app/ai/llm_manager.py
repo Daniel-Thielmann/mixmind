@@ -10,6 +10,7 @@ from collections.abc import Callable, Mapping, Sequence
 from dataclasses import dataclass, field
 from typing import Any
 
+from app.ai.cache import RecommendationCache, recommendation_cache
 from app.ai.client import LLMClient, OpenAICompatibleLLMClient
 from app.ai.exceptions import (
     LLMAllModelsFailed,
@@ -18,66 +19,27 @@ from app.ai.exceptions import (
     LLMTimeoutError,
     LLMValidationError,
 )
+from app.ai.metrics import LLMMetricsCollector, llm_metrics
+from app.ai.model_registry import ModelRegistry
 from app.core.config import settings
 from json_repair import repair_json
 
 logger = logging.getLogger(__name__)
 
-# Default values injected when a field is missing from the LLM response.
+
 _FIELD_DEFAULTS: dict[str, Any] = {
     "summary": "No summary provided.",
     "mix_direction": "No direction provided.",
-    "transition_quality": "Medium",
-    "transition_type": "Standard blend",
-    "confidence": 50,
-    "tempo_analysis": {
-        "difference": "No tempo analysis available.",
-        "recommendation": "Match tempos manually.",
-    },
-    "energy_analysis": {
-        "difference": "No energy analysis available.",
-        "recommendation": "Use your ears to match energy.",
-    },
-    "compatibility_analysis": {
-        "score": "No score available.",
-        "interpretation": "Interpretation unavailable.",
-    },
-    "mix_strategy": {
-        "before_transition": "Prepare your cue points.",
-        "during_transition": "Use a standard blend.",
-        "after_transition": "Monitor the mix.",
-    },
-    "dj_execution": {
-        "loop": "Set a loop as needed.",
-        "eq": "Use standard EQ technique.",
-        "filter": "Apply filter as desired.",
-        "tempo_fader": "No recommendation.",
-        "phrase_matching": "No recommendation.",
-        "cue_point": "No recommendation.",
-    },
     "club_tip": "",
     "professional_notes": "",
-    "risks": [],
-    "best_use_case": "",
-    "risk_level": "Medium",
-    "alternative_strategy": "",
-    "why_this_strategy": "",
-    "transition_timeline": {},
+    "confidence": 50,
 }
 
-_RICH_FIELDS = {
-    "tempo_analysis",
-    "energy_analysis",
-    "compatibility_analysis",
-    "mix_strategy",
-    "dj_execution",
-}
+_RICH_FIELDS: set[str] = set()
 
 
 @dataclass
 class LLMMetrics:
-    """Collects observability data for one LLM request cycle."""
-
     request_id: str = ""
     model_attempts: list[str] = field(default_factory=list)
     total_attempts: int = 0
@@ -94,21 +56,6 @@ class LLMMetrics:
 
 
 class LLMManager:
-    """Orchestrates the full LLM lifecycle: model fallback, retry, repair, parsing.
-
-    Configuration (from ``app.core.config.settings``):
-
-    * ``LLM_TIMEOUT`` — per-model timeout
-    * ``LLM_MAX_RETRIES`` — retry attempts per model
-    * ``LLM_RETRY_BACKOFF_BASE`` — exponential backoff base (seconds)
-
-    Retry happens only on retryable errors (HTTP 429, 5xx, timeout).
-    Invalid JSON, validation errors, and empty responses are never retried.
-
-    Raw responses are logged only when ``LLM_LOG_RAW_RESPONSES`` is ``True``
-    or the logger level is ``DEBUG``.
-    """
-
     def __init__(
         self,
         models: list[str],
@@ -120,10 +67,10 @@ class LLMManager:
         timeout: float | None = None,
         max_retries: int | None = None,
         backoff_base: float | None = None,
+        registry: ModelRegistry | None = None,
+        metrics_collector: LLMMetricsCollector | None = None,
+        cache: RecommendationCache | None = None,
     ) -> None:
-        self._models = models
-        self._base_url = base_url
-        self._api_key = api_key
         self._injected_client = client
         self._request_id = request_id or uuid.uuid4().hex[:8]
         self._timeout = timeout if timeout is not None else settings.LLM_TIMEOUT
@@ -136,9 +83,13 @@ class LLMManager:
             else settings.LLM_RETRY_BACKOFF_BASE
         )
 
-    # ------------------------------------------------------------------
-    # Public API
-    # ------------------------------------------------------------------
+        self._registry = registry or ModelRegistry(models)
+        self._metrics_collector = metrics_collector or llm_metrics
+        self._cache = cache or recommendation_cache
+
+        self._base_url = base_url
+        self._api_key = api_key
+        self._models = models
 
     def generate(
         self,
@@ -148,28 +99,16 @@ class LLMManager:
         max_tokens: int = 1000,
         validator: Callable[[dict[str, Any]], bool] | None = None,
     ) -> tuple[dict[str, Any], str, int]:
-        """Try each model in the chain: call → repair → normalise → validate.
-
-        Args:
-            messages: OpenAI-style chat messages (system + user).
-            temperature: Sampling temperature.
-            max_tokens: Max tokens in the response.
-            validator: Optional callback that receives the normalised dict
-                and returns ``True`` if it is acceptable.  When the callback
-                returns ``False`` the attempt is treated as a failure.
-
-        Returns:
-            ``(parsed_dict, model_name, total_attempts)``.
-
-        Raises:
-            LLMAllModelsFailed: When every model has been exhausted.
-        """
         metrics = LLMMetrics(request_id=self._request_id)
         start = time.monotonic()
 
         last_error: Exception | None = None
 
-        for model_idx, model in enumerate(self._models):
+        models_to_try = self._registry.get_available_models()
+        if not models_to_try:
+            models_to_try = list(self._models)
+
+        for model_idx, model in enumerate(models_to_try):
             if model_idx > 0 and self._injected_client is not None:
                 logger.info(
                     "[%s] Skipping fallback model %s (injected client in use)",
@@ -177,6 +116,14 @@ class LLMManager:
                     model,
                 )
                 break
+
+            if not self._registry.is_valid(model):
+                logger.info(
+                    "[%s] Skipping invalid model %s",
+                    self._request_id,
+                    model,
+                )
+                continue
 
             client = self._resolve_client(model_idx, model)
 
@@ -186,9 +133,8 @@ class LLMManager:
 
                 self._log_request_start(model, attempt)
 
-                # --- Call ---
                 raw, retryable = self._try_call(
-                    client, messages, temperature, max_tokens, metrics
+                    client, model, messages, temperature, max_tokens, metrics
                 )
                 if raw is None:
                     last_error = self._last_call_error
@@ -203,26 +149,24 @@ class LLMManager:
                             self._max_retries,
                         )
                         time.sleep(delay)
-                    continue
+                        continue
+                    break
 
-                # --- Raw response logging (M5) ---
                 self._maybe_log_raw_response(model, raw)
 
-                # --- Parse ---
                 parsed = self._repair_and_parse(raw)
                 if parsed is None:
+                    self._metrics_collector.record_json_error()
+                    self._log_raw_parse_error(model, raw)
                     logger.warning(
                         "[%s] Model %s returned unparseable JSON — skipping retry",
                         self._request_id,
                         model,
                     )
-                    # Invalid JSON is NOT retryable — move to next model.
                     break
 
-                # --- Normalise ---
                 normalised = self._normalize(parsed, metrics)
 
-                # --- Validate ---
                 if validator is not None:
                     try:
                         if not validator(normalised):
@@ -233,7 +177,6 @@ class LLMManager:
                             self._request_id,
                             model,
                         )
-                        # Validation failure is NOT retryable.
                         break
                     except Exception as exc:
                         logger.warning(
@@ -247,94 +190,121 @@ class LLMManager:
                             time.sleep(self._backoff(attempt))
                         continue
 
-                # --- Success ---
+                elapsed = time.monotonic() - start
+                self._registry.record_success(model, elapsed)
+                self._metrics_collector.record_success(model, elapsed)
+
                 metrics.success = True
                 metrics.final_model = model
                 metrics.validation_passed = True
-                metrics.total_time = time.monotonic() - start
+                metrics.total_time = elapsed
 
                 self._log_success(metrics)
                 self._log_summary(metrics)
                 return (normalised, model, metrics.total_attempts)
 
-        # --- All models exhausted ---
         metrics.total_time = time.monotonic() - start
         metrics.fallback = True
+        self._metrics_collector.record_fallback()
         self._log_summary(metrics)
         self._log_fallback(metrics, last_error)
 
         raise LLMAllModelsFailed(
-            f"[{self._request_id}] All {len(self._models)} models exhausted "
+            f"[{self._request_id}] All {len(models_to_try)} models exhausted "
             f"after {metrics.total_attempts} attempts. "
             f"Last error: {last_error}"
         ) from last_error
-
-    # ------------------------------------------------------------------
-    # Internal helpers
-    # ------------------------------------------------------------------
 
     _last_call_error: Exception | None = None
 
     def _try_call(
         self,
         client: LLMClient,
+        model: str,
         messages: Sequence[Mapping[str, Any]],
         temperature: float,
         max_tokens: int,
         metrics: LLMMetrics,
     ) -> tuple[str | None, bool]:
-        """Call the model and return ``(response, is_retryable)``.
-
-        Returns ``(None, True)`` for retryable errors (timeout, 429, 5xx).
-        Returns ``(None, False)`` for non-retryable errors.
-        """
         self._last_call_error = None
+        call_start = time.monotonic()
         try:
             raw = client.complete_chat(
                 messages, temperature=temperature, max_tokens=max_tokens
             )
         except LLMTimeoutError as exc:
             self._last_call_error = exc
+            self._registry.record_error(model)
+            self._metrics_collector.record_timeout(model)
             logger.warning(
-                "[%s] Model timed out — retryable",
+                "[%s] Model %s timed out after %.1fs — retryable",
                 self._request_id,
+                model,
+                time.monotonic() - call_start,
             )
             return (None, True)
         except LLMRateLimitError as exc:
             self._last_call_error = exc
+            self._registry.record_error(model)
+            self._registry.mark_cooldown(model)
+            self._metrics_collector.record_rate_limit(model)
             logger.warning(
-                "[%s] Rate limited (429) — retryable",
+                "[%s] Model %s rate limited (429) after %.1fs — retryable",
                 self._request_id,
+                model,
+                time.monotonic() - call_start,
             )
             return (None, True)
         except LLMHTTPError as exc:
             self._last_call_error = exc
+            elapsed = time.monotonic() - call_start
+            self._registry.record_error(model)
+
+            if self._registry.check_invalid_response(model, exc.status_code, str(exc)):
+                logger.warning(
+                    "[%s] Model %s invalid (HTTP %d) after %.1fs — removed",
+                    self._request_id,
+                    model,
+                    exc.status_code,
+                    elapsed,
+                )
+                return (None, False)
+
             if exc.is_retryable():
                 logger.warning(
-                    "[%s] HTTP %d — retryable",
+                    "[%s] Model %s HTTP %d after %.1fs — retryable",
                     self._request_id,
+                    model,
                     exc.status_code,
+                    elapsed,
                 )
                 return (None, True)
+
             logger.warning(
-                "[%s] HTTP %d — not retryable, moving to next model",
+                "[%s] Model %s HTTP %d after %.1fs — not retryable",
                 self._request_id,
+                model,
                 exc.status_code,
+                elapsed,
             )
             return (None, False)
         except Exception as exc:
             self._last_call_error = exc
+            self._registry.record_error(model)
             logger.warning(
-                "[%s] Unexpected error %s — not retryable",
+                "[%s] Model %s unexpected error %s after %.1fs — not retryable",
                 self._request_id,
+                model,
                 type(exc).__name__,
+                time.monotonic() - call_start,
             )
             return (None, False)
 
         if not raw or not raw.strip():
             logger.warning(
-                "[%s] Empty response — not retryable",
+                "[%s] Model %s empty response — not retryable",
                 self._request_id,
+                model,
             )
             return (None, False)
 
@@ -342,7 +312,6 @@ class LLMManager:
         return (raw, False)
 
     def _resolve_client(self, model_idx: int, model: str) -> LLMClient:
-        """Return a client for the given model index."""
         if model_idx == 0 and self._injected_client is not None:
             return self._injected_client
         return OpenAICompatibleLLMClient(
@@ -352,13 +321,8 @@ class LLMManager:
             timeout=self._timeout,
         )
 
-    # ------------------------------------------------------------------
-    # JSON extraction, repair & parsing
-    # ------------------------------------------------------------------
-
     @staticmethod
     def _extract_first_json(text: str) -> str:
-        """Find the first complete JSON object, respecting string contents."""
         start = text.find("{")
         if start == -1:
             return text
@@ -395,10 +359,6 @@ class LLMManager:
         return text[start:]
 
     def _repair_and_parse(self, raw: str) -> dict[str, Any] | None:
-        """Extract the first JSON object, repair, then parse.
-
-        Returns the parsed dict, or ``None`` if repair/parse fails.
-        """
         extracted = self._extract_first_json(raw.strip())
         if not extracted or extracted == raw.strip() and "{" not in extracted:
             extracted = raw.strip()
@@ -433,12 +393,7 @@ class LLMManager:
 
         return parsed
 
-    # ------------------------------------------------------------------
-    # Normalisation — fill missing fields
-    # ------------------------------------------------------------------
-
     def _normalize(self, parsed: dict[str, Any], metrics: LLMMetrics) -> dict[str, Any]:
-        """Fill missing top-level and nested fields with defaults."""
         for key, default in _FIELD_DEFAULTS.items():
             if key not in parsed or parsed[key] is None:
                 parsed[key] = default
@@ -451,20 +406,21 @@ class LLMManager:
 
         return parsed
 
-    # ------------------------------------------------------------------
-    # Utility
-    # ------------------------------------------------------------------
-
     def _backoff(self, attempt: int) -> float:
-        """Exponential backoff: base, base*2, base*4 (M2)."""
         return self._backoff_base * (2**attempt)
 
-    # ------------------------------------------------------------------
-    # Structured logging (M4)
-    # ------------------------------------------------------------------
+    def _log_raw_parse_error(self, model: str, raw: str) -> None:
+        logger.warning(
+            "================ RAW LLM RESPONSE ================\n"
+            "MODEL: %s\n"
+            "\n"
+            "%s\n"
+            "==================================================",
+            model,
+            raw,
+        )
 
     def _log_request_start(self, model: str, attempt: int) -> None:
-        """Log before calling the model."""
         logger.info(
             "========================================================\n"
             "REQUEST ID: %s\n"
@@ -482,7 +438,6 @@ class LLMManager:
         )
 
     def _maybe_log_raw_response(self, model: str, raw: str) -> None:
-        """Log raw response only when DEBUG or ``LLM_LOG_RAW_RESPONSES`` (M5)."""
         if not settings.LLM_LOG_RAW_RESPONSES and not logger.isEnabledFor(
             logging.DEBUG
         ):
@@ -499,7 +454,6 @@ class LLMManager:
         )
 
     def _log_success(self, m: LLMMetrics) -> None:
-        """Log successful completion."""
         filled = ""
         if m.filled_fields:
             filled = f" | filled: {m.filled_fields}"
@@ -516,7 +470,6 @@ class LLMManager:
         )
 
     def _log_summary(self, m: LLMMetrics) -> None:
-        """Print the LLM SUMMARY block (M4)."""
         logger.info(
             "==================================================\n"
             "LLM SUMMARY\n"
@@ -539,7 +492,6 @@ class LLMManager:
         )
 
     def _log_fallback(self, m: LLMMetrics, last_error: Exception | None) -> None:
-        """Log fallback after all models fail."""
         logger.warning(
             "[%s] FALLBACK — attempts: %d | total: %.3fs | last_error: %s",
             m.request_id,
@@ -547,3 +499,11 @@ class LLMManager:
             m.total_time,
             last_error,
         )
+
+    def health(self) -> dict[str, Any]:
+        return self._registry.health()
+
+    def stats(self) -> dict[str, Any]:
+        base = self._metrics_collector.stats()
+        base.update(self._cache.stats())
+        return base

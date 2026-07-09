@@ -123,29 +123,18 @@ class TestRepairAndParse:
 
 
 class TestNormalize:
-    def test_fills_missing_top_level_fields(self) -> None:
+    def test_fills_missing_text_fields(self) -> None:
         m = _manager()
         from app.ai.llm_manager import LLMMetrics
 
         metrics = LLMMetrics()
         parsed = {"summary": "Test"}
         m._normalize(parsed, metrics)
+        assert parsed["summary"] == "Test"
         assert parsed["mix_direction"] == "No direction provided."
         assert parsed["confidence"] == 50
-        assert parsed["risk_level"] == "Medium"
-
-    def test_fills_missing_nested_fields(self) -> None:
-        m = _manager()
-        from app.ai.llm_manager import LLMMetrics
-
-        metrics = LLMMetrics()
-        parsed = {
-            "summary": "Test",
-            "tempo_analysis": {"difference": "Small"},
-        }
-        m._normalize(parsed, metrics)
-        assert parsed["tempo_analysis"]["difference"] == "Small"
-        assert parsed["tempo_analysis"]["recommendation"] == "Match tempos manually."
+        assert parsed["club_tip"] == ""
+        assert parsed["professional_notes"] == ""
 
     def test_does_not_overwrite_existing_values(self) -> None:
         m = _manager()
@@ -155,24 +144,30 @@ class TestNormalize:
         parsed = {
             "summary": "Custom summary",
             "confidence": 80,
-            "risk_level": "Low",
+            "mix_direction": "Blend",
+            "club_tip": "Watch the highs",
+            "professional_notes": "",
         }
         m._normalize(parsed, metrics)
         assert parsed["summary"] == "Custom summary"
         assert parsed["confidence"] == 80
-        assert parsed["risk_level"] == "Low"
+        assert parsed["mix_direction"] == "Blend"
+        assert parsed["club_tip"] == "Watch the highs"
 
-    def test_fills_compatibility_interpretation(self) -> None:
+    def test_ignores_unknown_fields(self) -> None:
         m = _manager()
         from app.ai.llm_manager import LLMMetrics
 
         metrics = LLMMetrics()
-        parsed = {"compatibility_analysis": {"score": "80/100"}}
+        parsed = {
+            "summary": "Test",
+            "risk_level": "Low",
+            "tempo_analysis": {"difference": "Small"},
+        }
         m._normalize(parsed, metrics)
-        assert (
-            parsed["compatibility_analysis"]["interpretation"]
-            == "Interpretation unavailable."
-        )
+        assert parsed["summary"] == "Test"
+        assert "risk_level" in parsed  # kept but not normalized
+        assert "tempo_analysis" in parsed  # kept but not normalized
 
     def test_records_filled_fields_in_metrics(self) -> None:
         m = _manager()

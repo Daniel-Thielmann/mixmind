@@ -65,42 +65,11 @@ VALID_LLM_JSON = (
     "{"
     '"summary":"Technically strong pairing with minimal tempo difference.",'
     '"mix_direction":"Blend Track B after a clean phrase-matched transition.",'
-    '"transition_quality":"High",'
-    '"transition_type":"Long harmonic blend",'
-    '"confidence":96,'
-    '"tempo_analysis":'
-    '{"difference":"Only 0.5 BPM apart — excellent tempo alignment.",'
-    '"recommendation":"Use key lock and blend directly with no tempo adjustment."},'
-    '"energy_analysis":'
-    '{"difference":"Energy delta of 0.01 is negligible — '
-    'both tracks sit at the same intensity.",'
-    '"recommendation":'
-    '"Bring Track B in with full EQ and maintain the current energy curve."},'
-    '"compatibility_analysis":'
-    '{"score":"94/100 — Excellent technical match.",'
-    '"interpretation":"The backend rates this pair as Excellent. '
-    'The score supports a confident transition."},'
-    '"mix_strategy":'
-    '{"before_transition":"Set a 4-beat loop on Track B '
-    'at the breakdown entrance.",'
-    '"during_transition":"Start Track B on the one-count of bar 33. '
-    'Open highs over 8 bars.",'
-    '"after_transition":"Release the loop at bar 49 '
-    'and let the groove ride."},'
-    '"dj_execution":'
-    '{"loop":"4-beat loop on Track B entrance.",'
-    '"eq":"Reduce lows on Track A over 8 bars.",'
-    '"filter":"Open high-pass filter on Track A gradually.",'
-    '"tempo_fader":"No adjustment needed — BPMs are nearly identical.",'
-    '"phrase_matching":"Match 16-bar phrases — enter on bar 33.",'
-    '"cue_point":"Set cue on the first beat of bar 33."},'
     '"club_tip":"Enter on the next 16-bar phrase to keep the dance floor locked in.",'
     '"professional_notes":'
     '"The backend metrics suggest a textbook harmonic blend. '
     'No technical risks identified.",'
-    '"risks":["None identified — both tracks are well aligned."],'
-    '"best_use_case":"Peak-time or warm-up — versatile pairing.",'
-    '"risk_level":"Low"'
+    '"confidence":96'
     "}"
 )
 
@@ -191,8 +160,7 @@ def _expected_valid() -> AIRecommendationResponse:
         ),
         energy_analysis=EnergyAnalysis(
             difference=(
-                "Energy delta of 0.01 is negligible — "
-                "both tracks sit at the same intensity."
+                "Energy delta is negligible — both tracks sit at the same intensity."
             ),
             recommendation=(
                 "Bring Track B in with full EQ and maintain the current energy curve."
@@ -207,20 +175,21 @@ def _expected_valid() -> AIRecommendationResponse:
         ),
         mix_strategy=MixStrategy(
             before_transition=(
-                "Set a 4-beat loop on Track B at the breakdown entrance."
+                "Set a 4-beat cue point on Track B at bar 1. "
+                "Align phrasing for a 64 bars blend."
             ),
             during_transition=(
-                "Start Track B on the one-count of bar 33. Open highs over 8 bars."
+                "Start Track B on the one-count. Open highs over 32 bars."
             ),
-            after_transition=("Release the loop at bar 49 and let the groove ride."),
+            after_transition=("Complete the blend by bar 64. Release any loops."),
         ),
         dj_execution=DJExecution(
-            loop="4-beat loop on Track B entrance.",
-            eq="Reduce lows on Track A over 8 bars.",
-            filter="Open high-pass filter on Track A gradually.",
+            loop="4-bar loop on Track B entrance.",
+            eq="Reduce lows on Track A over 8 bars. Open Track B with mids first.",
+            filter="Apply a high-pass filter on Track A sweeping from 40Hz to 250Hz.",
             tempo_fader="No adjustment needed — BPMs are nearly identical.",
-            phrase_matching="Match 16-bar phrases — enter on bar 33.",
-            cue_point="Set cue on the first beat of bar 33.",
+            phrase_matching="Match 16-bar phrases. Enter on bar 1 of a new phrase.",
+            cue_point="Set cue on the first beat of the target phrase.",
         ),
         club_tip="Enter on the next 16-bar phrase to keep the dance floor locked in.",
         professional_notes=(
@@ -230,9 +199,25 @@ def _expected_valid() -> AIRecommendationResponse:
             "Mix difficulty is very easy. Smooth transition expected. "
             "Recommended transition: 64 bars."
         ),
-        risks=["None identified — both tracks are well aligned."],
-        best_use_case="Peak-time or warm-up — versatile pairing.",
+        risks=[
+            "Risk: None identified|Impact: Low|"
+            "Mitigation: Standard monitoring during the transition"
+        ],
+        best_use_case="Peak-time or warm-up",
         risk_level="Low",
+        alternative_strategy="Try a loop bridge if the blend feels too long.",
+        why_this_strategy=(
+            "BPM difference of 0.5 and compatibility of 94/100 "
+            "make this a straightforward blend requiring minimal intervention."
+        ),
+        transition_timeline={
+            "bar_1": "Start Track B intro",
+            "bar_17": "Begin opening highs",
+            "bar_33": "Swap bass lines",
+            "bar_49": "Track A begins fade out",
+            "bar_57": "Close filter on Track A",
+            "bar_64": "Track B fully active",
+        },
     )
 
 
@@ -258,10 +243,10 @@ def test_build_llm_payload_includes_analysis_id() -> None:
     assert payload["analysis_id"] == "test-session"
 
 
-def test_build_llm_payload_includes_status_and_message() -> None:
+def test_build_llm_payload_omits_status_and_message() -> None:
     payload = build_llm_payload(_build_response())
-    assert payload["status"] == "success"
-    assert payload["message"] == "Tracks analyzed successfully"
+    assert "status" not in payload
+    assert "message" not in payload
 
 
 def test_build_llm_payload_includes_track_a_fields() -> None:
@@ -270,8 +255,8 @@ def test_build_llm_payload_includes_track_a_fields() -> None:
     assert track_a["filename"] == "Track A"
     assert track_a["bpm"] == 128.0
     assert track_a["energy"] == 0.18
-    assert track_a["duration"] == 210.0
-    assert track_a["sample_rate"] == 44100
+    assert "duration" not in track_a
+    assert "sample_rate" not in track_a
 
 
 def test_build_llm_payload_includes_track_b_fields() -> None:
@@ -280,8 +265,8 @@ def test_build_llm_payload_includes_track_b_fields() -> None:
     assert track_b["filename"] == "Track B"
     assert track_b["bpm"] == 127.5
     assert track_b["energy"] == 0.17
-    assert track_b["duration"] == 214.0
-    assert track_b["sample_rate"] == 44100
+    assert "duration" not in track_b
+    assert "sample_rate" not in track_b
 
 
 def test_build_llm_payload_includes_nested_compatibility() -> None:
@@ -290,8 +275,8 @@ def test_build_llm_payload_includes_nested_compatibility() -> None:
     assert compat["compatibility_score"] == 94.0
     assert compat["tempo_difference"] == 0.5
     assert compat["energy_difference"] == 0.01
-    assert compat["tempo_match"] == "Excellent"
-    assert compat["energy_match"] == "Excellent"
+    assert "tempo_match" not in compat
+    assert "energy_match" not in compat
     assert compat["overall_rating"] == "Excellent"
 
 
@@ -369,33 +354,17 @@ class TestValidResponse:
 
 class TestNormalisation:
     def test_normalises_minimal_json(self) -> None:
-        raw = '{"summary":"Mix","confidence":50}'
+        raw = (
+            '{"summary":"Mix","confidence":50,'
+            '"mix_direction":"Blend","club_tip":"","professional_notes":""}'
+        )
         agent = DJAgent(client=FakeLLMClient(raw))
         response = agent.recommend(_build_response())
         assert response.confidence == 50
-        assert response.risk_level == "Medium"
+        assert response.risk_level == "Low"  # from rule engine
         assert (
-            response.compatibility_analysis.interpretation
-            == "Interpretation unavailable."
-        )
-
-    def test_normalises_missing_nested_field(self) -> None:
-        raw = (
-            '{"summary":"Mix","confidence":50,'
-            '"mix_direction":"x","transition_quality":"Low",'
-            '"transition_type":"x",'
-            '"tempo_analysis":{"difference":"a"},'
-            '"energy_analysis":{"difference":"a","recommendation":"b"},'
-            '"compatibility_analysis":{"score":"a","interpretation":"b"},'
-            '"mix_strategy":'
-            '{"before_transition":"a","during_transition":"b","after_transition":"c"},'
-            '"dj_execution":{"loop":"a","eq":"b","filter":"c"},'
-            '"risks":[],"risk_level":"Low"}'
-        )
-        agent = DJAgent(client=FakeLLMClient(raw))
-        response = agent.recommend(_build_response())
-        assert response.tempo_analysis.recommendation == "Match tempos manually."
-        assert response.dj_execution.tempo_fader == "No recommendation."
+            "Excellent" in response.compatibility_analysis.interpretation
+        )  # from rule engine
 
 
 # ===================================================================
@@ -408,7 +377,7 @@ class TestFallback:
         agent = DJAgent(client=FakeLLMClient("not valid json"))
         response = agent.recommend(_build_response())
         assert response.confidence == 0
-        assert response.risk_level == "High"
+        assert response.risk_level == "Low"  # from rule engine
         assert "unavailable" in response.summary.lower()
 
     def test_fallback_for_empty_response(self) -> None:
@@ -437,9 +406,9 @@ class TestFallback:
 
     def test_fallback_response_has_zero_confidence(self) -> None:
         agent = DJAgent(client=FakeLLMClient(""))
-        fallback = agent._fallback_response()
-        assert fallback.confidence == 0
-        assert fallback.risk_level == "High"
+        response = agent.recommend(_build_response())
+        assert response.confidence == 0
+        assert response.risk_level == "Low"  # from rule engine
 
 
 # ===================================================================
@@ -470,19 +439,7 @@ class TestRetry:
 class TestJSONRepairIntegration:
     def test_repairs_truncated_json(self) -> None:
         truncated = (
-            '{"summary":"Repaired","confidence":50,'
-            '"mix_direction":"x","transition_quality":"Low",'
-            '"transition_type":"x",'
-            '"tempo_analysis":{"difference":"a","recommendation":"b"},'
-            '"energy_analysis":{"difference":"a","recommendation":"b"},'
-            '"compatibility_analysis":{"score":"a","interpretation":"b"},'
-            '"mix_strategy":'
-            '{"before_transition":"a","during_transition":"b","after_transition":"c"},'
-            '"dj_execution":'
-            '{"loop":"a","eq":"b","filter":"c",'
-            '"tempo_fader":"d","phrase_matching":"e","cue_point":"f"},'
-            '"club_tip":"a","professional_notes":"a",'
-            '"risks":[],"best_use_case":"a","risk_level":"Low"'
+            '{"summary":"Repaired","confidence":50,"mix_direction":"x","club_tip":"a"'
         )
         agent = DJAgent(client=FakeLLMClient(truncated))
         response = agent.recommend(_build_response())
@@ -492,18 +449,7 @@ class TestJSONRepairIntegration:
     def test_repairs_single_quotes(self) -> None:
         raw = (
             "{'summary':'Single quoted test','confidence':50,"
-            "'mix_direction':'test','transition_quality':'Medium',"
-            "'transition_type':'test',"
-            "'tempo_analysis':{'difference':'a','recommendation':'b'},"
-            "'energy_analysis':{'difference':'a','recommendation':'b'},"
-            "'compatibility_analysis':{'score':'a','interpretation':'b'},"
-            "'mix_strategy':"
-            "{'before_transition':'a','during_transition':'b','after_transition':'c'},"
-            "'dj_execution':"
-            "{'loop':'a','eq':'b','filter':'c',"
-            "'tempo_fader':'d','phrase_matching':'e','cue_point':'f'},"
-            "'club_tip':'a','professional_notes':'a',"
-            "'risks':[],'best_use_case':'a','risk_level':'Medium'}"
+            "'mix_direction':'test','club_tip':'a','professional_notes':'a'}"
         )
         agent = DJAgent(client=FakeLLMClient(raw))
         response = agent.recommend(_build_response())
@@ -553,67 +499,57 @@ class TestBackendComputedFields:
         response = agent.recommend(_build_response())
         assert response.ai_fallback_occurred is True
 
+    def test_fallback_risk_level_from_rule_engine(self) -> None:
+        agent = DJAgent(client=FakeLLMClient("bad data"))
+        response = agent.recommend(_build_response())
+        assert response.risk_level == "Low"  # rule engine with high compat score
+
 
 # ===================================================================
 # New schema fields — defaults (M5, M7, M8)
 # ===================================================================
 
 
-class TestNewSchemaDefaults:
-    def test_alternative_strategy_has_default(self) -> None:
+class TestRuleEngineFields:
+    def test_alternative_strategy_from_rule_engine(self) -> None:
         agent = DJAgent(client=FakeLLMClient(VALID_LLM_JSON))
         response = agent.recommend(_build_response())
-        assert response.alternative_strategy == ""
+        assert "loop bridge" in response.alternative_strategy
 
-    def test_why_this_strategy_has_default(self) -> None:
+    def test_why_this_strategy_from_rule_engine(self) -> None:
         agent = DJAgent(client=FakeLLMClient(VALID_LLM_JSON))
         response = agent.recommend(_build_response())
-        assert response.why_this_strategy == ""
+        assert "BPM difference" in response.why_this_strategy
 
-    def test_transition_timeline_has_default(self) -> None:
+    def test_transition_timeline_from_rule_engine(self) -> None:
         agent = DJAgent(client=FakeLLMClient(VALID_LLM_JSON))
         response = agent.recommend(_build_response())
-        assert response.transition_timeline == {}
+        assert response.transition_timeline["bar_1"] == "Start Track B intro"
+        assert len(response.transition_timeline) == 6
 
-    def test_fallback_has_new_schema_fields(self) -> None:
+    def test_fallback_has_rule_engine_fields(self) -> None:
         agent = DJAgent(client=FakeLLMClient("bad data"))
         response = agent.recommend(_build_response())
-        assert response.alternative_strategy == ""
-        assert response.why_this_strategy == ""
-        assert response.transition_timeline == {}
+        assert "loop bridge" in response.alternative_strategy
+        assert "BPM difference" in response.why_this_strategy
+        assert response.transition_timeline["bar_33"] == "Swap bass lines"
 
-    def test_valid_json_with_new_fields_parses(self) -> None:
+    def test_backend_fields_from_rule_engine(self) -> None:
+        """Alternative strategy, why_this_strategy, timeline come from rule engine."""
         raw = (
             "{"
             '"summary":"Great mix with alternative.",'
             '"mix_direction":"Blend",'
-            '"transition_quality":"High",'
-            '"transition_type":"Harmonic blend",'
-            '"confidence":90,'
-            '"tempo_analysis":{"difference":"Small","recommendation":"Blend"},'
-            '"energy_analysis":{"difference":"Small","recommendation":"Match"},'
-            '"compatibility_analysis":{"score":"90","interpretation":"Excellent"},'
-            '"mix_strategy":'
-            '{"before_transition":"a","during_transition":"b","after_transition":"c"},'
-            '"dj_execution":'
-            '{"loop":"a","eq":"b","filter":"c",'
-            '"tempo_fader":"d","phrase_matching":"e","cue_point":"f"},'
-            '"club_tip":"a","professional_notes":"a",'
-            '"risks":[],"best_use_case":"a","risk_level":"Low",'
-            '"alternative_strategy":"Try an echo out instead of a blend.",'
-            '"why_this_strategy":'
-            '"BPM difference is small so a direct blend works safely.",'
-            '"transition_timeline":'
-            '{"bar_1":"Start intro","bar_9":"Open highs","bar_17":"Swap bass"}'
+            '"club_tip":"a",'
+            '"professional_notes":"a",'
+            '"confidence":90'
             "}"
         )
         agent = DJAgent(client=FakeLLMClient(raw))
         response = agent.recommend(_build_response())
-        assert response.alternative_strategy == "Try an echo out instead of a blend."
+        assert "loop bridge" in response.alternative_strategy
         assert "BPM difference" in response.why_this_strategy
-        assert response.transition_timeline["bar_1"] == "Start intro"
-        assert response.transition_timeline["bar_9"] == "Open highs"
-        assert response.transition_timeline["bar_17"] == "Swap bass"
+        assert response.transition_timeline["bar_1"] == "Start Track B intro"
 
 
 # ===================================================================
@@ -762,7 +698,7 @@ class TestLLMManagerDirect:
 
     def test_injected_client_skips_fallback(self) -> None:
         client = FakeLLMClient(
-            '{"summary":"ok","confidence":10,"mix_direction":"x","transition_quality":"Low","transition_type":"x","tempo_analysis":{"difference":"a","recommendation":"b"},"energy_analysis":{"difference":"a","recommendation":"b"},"compatibility_analysis":{"score":"a","interpretation":"b"},"mix_strategy":{"before_transition":"a","during_transition":"b","after_transition":"c"},"dj_execution":{"loop":"a","eq":"b","filter":"c","tempo_fader":"d","phrase_matching":"e","cue_point":"f"},"club_tip":"a","professional_notes":"a","risks":[],"best_use_case":"a","risk_level":"Low"}'
+            '{"summary":"ok","mix_direction":"x","club_tip":"a","professional_notes":"a","confidence":10}'
         )
         manager = LLMManager(
             models=["primary", "fallback-a", "fallback-b"],
