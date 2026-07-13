@@ -1,203 +1,189 @@
+"use client";
+
+import { motion } from "framer-motion";
+import {
+  Sparkles,
+  Route,
+  Gauge,
+  Zap,
+  Layers,
+  Users,
+  Lightbulb,
+  StickyNote,
+  Swords,
+  Target,
+} from "lucide-react";
 import type { AIRecommendationResponse } from "@/types";
+import { RiskBadge } from "./RiskBadge";
 
 interface AIRecommendationCardProps {
   recommendation: AIRecommendationResponse;
 }
 
-export function AIRecommendationCard({ recommendation: r }: AIRecommendationCardProps) {
-  const confidenceColor =
-    r.confidence >= 80
-      ? "text-success border-success/20 bg-success/10"
-      : r.confidence >= 50
-        ? "text-yellow-400 border-yellow-400/20 bg-yellow-400/10"
-        : "text-danger border-danger/20 bg-danger/10";
-
-  const riskColor =
-    r.risk_level.toLowerCase() === "low"
-      ? "bg-success/10 text-success border-success/20"
-      : r.risk_level.toLowerCase() === "medium"
-        ? "bg-yellow-400/10 text-yellow-400 border-yellow-400/20"
-        : "bg-danger/10 text-danger border-danger/20";
-
+export function AIRecommendationCard({
+  recommendation: r,
+}: AIRecommendationCardProps) {
   return (
-    <section className="rounded-2xl border border-zinc-800 bg-card/75 p-6 shadow-[0_20px_60px_-35px_rgba(0,0,0,0.9)] backdrop-blur md:p-7">
+    <motion.section
+      initial={{ opacity: 0, y: 20 }}
+      animate={{ opacity: 1, y: 0 }}
+      transition={{ duration: 0.5, delay: 0.35 }}
+      className="rounded-2xl border border-zinc-800 bg-card/75 p-6 shadow-[0_20px_60px_-35px_rgba(0,0,0,0.9)] backdrop-blur md:p-7"
+    >
       <div className="mb-5 flex flex-wrap items-center justify-between gap-3">
         <h3 className="text-lg font-semibold text-text">AI Recommendation</h3>
-        <span
-          className={`inline-flex items-center gap-1.5 rounded-full border px-3 py-1 text-xs font-semibold ${confidenceColor}`}
+        <RiskBadge level={r.risk_level} />
+      </div>
+
+      <Block icon={Sparkles} title="Summary">
+        <p className="rounded-xl border border-primary/10 bg-primary/2 px-5 py-4 text-sm font-medium italic leading-relaxed text-text/90">
+          {r.summary}
+        </p>
+      </Block>
+
+      <Block icon={Route} title="Mix Direction">
+        <Stat value={r.mix_direction} />
+      </Block>
+
+      <Block icon={Gauge} title="Tempo Analysis">
+        <div
+          className="grid gap-4"
+          style={{
+            gridTemplateColumns: "repeat(auto-fit, minmax(240px, 1fr))",
+          }}
         >
-          <span className="h-1.5 w-1.5 rounded-full bg-current" />
-          {r.confidence}% confidence
-        </span>
-      </div>
-
-      {/* Summary */}
-      <p className="mb-6 rounded-xl border border-zinc-800 bg-zinc-900/65 px-4 py-3 text-sm font-medium italic leading-relaxed text-text/90 [overflow-wrap:anywhere] break-words">
-        {r.summary}
-      </p>
-
-      {/* Mix Direction */}
-      <div className="mb-6">
-        <Field label="Mix Direction" value={r.mix_direction} />
-      </div>
-
-      {/* Transition */}
-      <div className="mb-6">
-        <h4 className="mb-3 text-xs font-semibold uppercase tracking-[0.15em] text-text-secondary">
-          Transition
-        </h4>
-        <div className="grid gap-3 md:grid-cols-2">
-          <Stat label="Quality" value={r.transition_quality} />
-          <Stat label="Type" value={r.transition_type} />
+          <MiniStat label="Difference" value={r.tempo_analysis.difference} />
+          <MiniStat label="Recommendation" value={r.tempo_analysis.recommendation} />
         </div>
-      </div>
+      </Block>
 
-      {/* Tempo Analysis */}
-      <div className="mb-6">
-        <h4 className="mb-3 text-xs font-semibold uppercase tracking-[0.15em] text-text-secondary">
-          Tempo Analysis
-        </h4>
-        <div className="grid gap-3 md:grid-cols-2">
-          <Stat label="Difference" value={r.tempo_analysis.difference} />
-          <Stat label="Recommendation" value={r.tempo_analysis.recommendation} />
+      <Block icon={Zap} title="Energy Analysis">
+        <div
+          className="grid gap-4"
+          style={{
+            gridTemplateColumns: "repeat(auto-fit, minmax(240px, 1fr))",
+          }}
+        >
+          <MiniStat label="Difference" value={r.energy_analysis.difference} />
+          <MiniStat label="Recommendation" value={r.energy_analysis.recommendation} />
         </div>
-      </div>
+      </Block>
 
-      {/* Energy Analysis */}
-      <div className="mb-6">
-        <h4 className="mb-3 text-xs font-semibold uppercase tracking-[0.15em] text-text-secondary">
-          Energy Analysis
-        </h4>
-        <div className="grid gap-3 md:grid-cols-2">
-          <Stat label="Difference" value={r.energy_analysis.difference} />
-          <Stat label="Recommendation" value={r.energy_analysis.recommendation} />
+      <Block icon={Layers} title="Mix Strategy">
+        <div
+          className="grid gap-4"
+          style={{
+            gridTemplateColumns: "repeat(auto-fit, minmax(240px, 1fr))",
+          }}
+        >
+          <MiniStat label="Before" value={r.mix_strategy.before_transition} />
+          <MiniStat label="During" value={r.mix_strategy.during_transition} />
+          <MiniStat label="After" value={r.mix_strategy.after_transition} />
         </div>
-      </div>
+      </Block>
 
-      {/* Compatibility Analysis */}
-      <div className="mb-6">
-        <h4 className="mb-3 text-xs font-semibold uppercase tracking-[0.15em] text-text-secondary">
-          Compatibility Analysis
-        </h4>
-        <div className="grid gap-3 md:grid-cols-2">
-          <Stat label="Score" value={r.compatibility_analysis.score} />
-          <Stat label="Interpretation" value={r.compatibility_analysis.interpretation} />
-        </div>
-      </div>
-
-      {/* Mix Strategy */}
-      <div className="mb-6">
-        <h4 className="mb-3 text-xs font-semibold uppercase tracking-[0.15em] text-text-secondary">
-          Mix Strategy
-        </h4>
-        <div className="grid gap-3 md:grid-cols-3">
-          <Stat label="Before" value={r.mix_strategy.before_transition} />
-          <Stat label="During" value={r.mix_strategy.during_transition} />
-          <Stat label="After" value={r.mix_strategy.after_transition} />
-        </div>
-      </div>
-
-      {/* DJ Execution */}
-      <div className="mb-6">
-        <h4 className="mb-3 text-xs font-semibold uppercase tracking-[0.15em] text-text-secondary">
-          DJ Execution
-        </h4>
-        <div className="grid gap-3 md:grid-cols-2">
-          <Stat label="Loop" value={r.dj_execution.loop} />
-          <Stat label="EQ" value={r.dj_execution.eq} />
-          <Stat label="Filter" value={r.dj_execution.filter} />
-          <Stat label="Tempo Fader" value={r.dj_execution.tempo_fader} />
-          <Stat label="Phrase Matching" value={r.dj_execution.phrase_matching} />
-          <Stat label="Cue Point" value={r.dj_execution.cue_point} />
-        </div>
-      </div>
-
-      {/* Professional Notes */}
-      {r.professional_notes && (
-        <div className="mb-6">
-          <h4 className="mb-3 text-xs font-semibold uppercase tracking-[0.15em] text-text-secondary">
-            Professional Notes
-          </h4>
-          <p className="rounded-xl border border-zinc-800 bg-zinc-900/65 px-4 py-3 text-sm leading-relaxed text-text-secondary [overflow-wrap:anywhere] break-words">
-            {r.professional_notes}
-          </p>
-        </div>
-      )}
-
-      {/* Club Tip */}
-      {r.club_tip && (
-        <div className="mb-6">
-          <h4 className="mb-3 text-xs font-semibold uppercase tracking-[0.15em] text-text-secondary">
-            Club Tip
-          </h4>
-          <p className="rounded-xl border border-zinc-800 bg-zinc-900/65 px-4 py-3 text-sm leading-relaxed text-text-secondary [overflow-wrap:anywhere] break-words">
-            {r.club_tip}
-          </p>
-        </div>
-      )}
-
-      {/* Risks */}
-      {r.risks.length > 0 && (
-        <div className="mb-6">
-          <h4 className="mb-3 text-xs font-semibold uppercase tracking-[0.15em] text-text-secondary">
-            Risks
-          </h4>
+      <Block icon={Swords} title="Risks">
+        {r.risks.length > 0 ? (
           <div className="flex flex-wrap gap-2">
             {r.risks.map((risk, i) => (
               <span
                 key={i}
-                className="rounded-full border border-danger/20 bg-danger/10 px-3 py-1 text-xs font-medium text-danger [overflow-wrap:anywhere] break-words"
+                className="rounded-full border border-danger/20 bg-danger/10 px-3 py-1 text-xs font-medium text-danger"
               >
                 {risk}
               </span>
             ))}
           </div>
+        ) : (
+          <p className="text-sm text-text-secondary">No risks identified.</p>
+        )}
+      </Block>
+
+      <Block icon={Lightbulb} title="Club Tip" condition={!!r.club_tip}>
+        {r.club_tip && (
+          <p className="rounded-xl border border-success/15 bg-success/3 px-5 py-4 text-sm leading-relaxed text-success/90">
+            {r.club_tip}
+          </p>
+        )}
+      </Block>
+
+      <Block icon={StickyNote} title="Professional Notes" condition={!!r.professional_notes}>
+        {r.professional_notes && (
+          <p className="rounded-xl border border-zinc-800 bg-zinc-900/65 px-5 py-4 text-sm leading-relaxed text-text-secondary">
+            {r.professional_notes}
+          </p>
+        )}
+      </Block>
+
+      <div
+        className="grid gap-4"
+        style={{
+          gridTemplateColumns: "repeat(auto-fit, minmax(240px, 1fr))",
+        }}
+      >
+        {r.best_use_case && (
+          <Block icon={Target} title="Best Use Case">
+            <Stat value={r.best_use_case} />
+          </Block>
+        )}
+        {r.alternative_strategy && (
+          <Block icon={Route} title="Alternative Strategy">
+            <Stat value={r.alternative_strategy} />
+          </Block>
+        )}
+      </div>
+
+      {r.why_this_strategy && (
+        <div className="mt-5">
+          <Block icon={Users} title="Why This Strategy">
+            <Stat value={r.why_this_strategy} />
+          </Block>
         </div>
       )}
-
-      {/* Best Use Case + Risk Level */}
-      <div className="grid gap-3 md:grid-cols-2">
-        {r.best_use_case && (
-          <div>
-            <p className="mb-1 text-xs uppercase tracking-[0.15em] text-text-secondary">
-              Best Use Case
-            </p>
-            <p className="rounded-xl border border-zinc-800 bg-zinc-900/65 px-4 py-3 text-sm font-medium leading-relaxed text-text [overflow-wrap:anywhere] break-words">
-              {r.best_use_case}
-            </p>
-          </div>
-        )}
-        <div>
-          <p className="mb-1 text-xs uppercase tracking-[0.15em] text-text-secondary">
-            Risk Level
-          </p>
-          <span
-            className={`inline-block rounded-full border px-4 py-2 text-sm font-semibold ${riskColor}`}
-          >
-            {r.risk_level}
-          </span>
-        </div>
-      </div>
-    </section>
+    </motion.section>
   );
 }
 
-function Stat({ label, value }: { label: string; value: string }) {
+function Block({
+  icon: Icon,
+  title,
+  children,
+  condition = true,
+}: {
+  icon: React.ComponentType<{ className?: string }>;
+  title: string;
+  children: React.ReactNode;
+  condition?: boolean;
+}) {
+  if (!condition) return null;
   return (
-    <div className="rounded-xl border border-zinc-800 bg-zinc-900/65 px-4 py-3">
-      <p className="text-xs uppercase tracking-[0.15em] text-text-secondary">{label}</p>
-      <p className="mt-1 text-base font-semibold text-text [overflow-wrap:anywhere] break-words">
+    <div className="mb-5 last:mb-0">
+      <h4 className="mb-3 flex items-center gap-2 text-xs font-semibold uppercase tracking-[0.15em] text-text-secondary">
+        <Icon className="h-3.5 w-3.5 shrink-0" />
+        {title}
+      </h4>
+      {children}
+    </div>
+  );
+}
+
+function Stat({ value }: { value: string }) {
+  return (
+    <div className="rounded-xl border border-zinc-800 bg-zinc-900/65 px-5 py-4">
+      <p className="text-sm leading-relaxed text-text whitespace-normal">
         {value}
       </p>
     </div>
   );
 }
 
-function Field({ label, value }: { label: string; value: string }) {
+function MiniStat({ label, value }: { label: string; value: string }) {
   return (
-    <div className="rounded-xl border border-zinc-800 bg-zinc-900/65 px-4 py-3">
-      <p className="text-xs uppercase tracking-[0.15em] text-text-secondary">{label}</p>
-      <p className="mt-1 text-sm leading-relaxed text-text [overflow-wrap:anywhere] break-words">
+    <div className="rounded-xl border border-zinc-800 bg-zinc-900/65 px-5 py-4">
+      <p className="mb-2 text-xs uppercase tracking-[0.15em] text-text-secondary">
+        {label}
+      </p>
+      <p className="text-sm leading-relaxed text-text whitespace-normal">
         {value}
       </p>
     </div>
