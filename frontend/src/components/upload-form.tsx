@@ -1,10 +1,13 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import { motion, AnimatePresence } from "framer-motion";
+import { Upload } from "lucide-react";
 
 import { Dashboard } from "@/components/home/dashboard";
 import { UploadCard } from "@/components/upload/upload-card";
 import { LoadingSpinner } from "@/components/ui/loading-spinner";
+import { SkeletonGrid } from "@/components/ui/Skeleton";
 import { apiService } from "@/services/api";
 import type { UploadAnalysisResponse, UploadStatus } from "@/types";
 
@@ -36,7 +39,6 @@ export function UploadForm() {
     return () => clearTimeout(t);
   }, [status]);
 
-  // Derive the active step index from status + timer
   let phase = 0;
   if (status === "uploading") phase = 1;
   else if (status === "processing") phase = showAiPhase ? 3 : 2;
@@ -76,86 +78,122 @@ export function UploadForm() {
 
   return (
     <section className="mt-12 w-full">
-      <div className="rounded-3xl border border-zinc-800 bg-card/65 p-6 shadow-[0_25px_80px_-45px_rgba(0,0,0,1)] backdrop-blur md:p-8">
-        <div className="grid gap-6 lg:grid-cols-2">
-          <UploadCard
-            label="Track A"
-            fileName={trackA?.name}
-            onFile={(file) => setTrackA(file)}
-          />
-          <UploadCard
-            label="Track B"
-            fileName={trackB?.name}
-            onFile={(file) => setTrackB(file)}
-          />
-        </div>
+      <AnimatePresence mode="wait">
+        {status === "success" && result ? (
+          <motion.div
+            key="dashboard"
+            initial={{ opacity: 0, y: 30 }}
+            animate={{ opacity: 1, y: 0 }}
+            exit={{ opacity: 0, y: -30 }}
+            transition={{ duration: 0.5 }}
+          >
+            <Dashboard result={result} />
+          </motion.div>
+        ) : (
+          <motion.div
+            key="upload"
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            className="rounded-3xl border border-zinc-800 bg-card/65 p-6 shadow-[0_25px_80px_-45px_rgba(0,0,0,1)] backdrop-blur md:p-8"
+          >
+            <div className="grid gap-6 lg:grid-cols-2">
+              <UploadCard
+                label="Track A"
+                fileName={trackA?.name}
+                onFile={(file) => setTrackA(file)}
+              />
+              <UploadCard
+                label="Track B"
+                fileName={trackB?.name}
+                onFile={(file) => setTrackB(file)}
+              />
+            </div>
 
-        <button
-          onClick={handleAnalyze}
-          disabled={!trackA || !trackB || isBusy}
-          aria-busy={isBusy}
-          className="mt-6 flex w-full items-center justify-center gap-2 rounded-xl bg-success px-6 py-4 text-base font-bold text-black transition hover:brightness-110 disabled:cursor-not-allowed disabled:opacity-55"
-        >
-          {isBusy ? (
-            <>
-              <LoadingSpinner />
-              {STEPS[phase - 1]?.label ?? "Working..."}
-            </>
-          ) : (
-            "Analyze"
-          )}
-        </button>
+            <button
+              onClick={handleAnalyze}
+              disabled={!trackA || !trackB || isBusy}
+              aria-busy={isBusy}
+              className="mt-6 flex w-full items-center justify-center gap-2 rounded-xl bg-success px-6 py-4 text-base font-bold text-black transition hover:brightness-110 disabled:cursor-not-allowed disabled:opacity-55"
+            >
+              {isBusy ? (
+                <>
+                  <LoadingSpinner />
+                  {STEPS[phase - 1]?.label ?? "Working..."}
+                </>
+              ) : (
+                <>
+                  <Upload className="h-5 w-5" />
+                  Analyze Tracks
+                </>
+              )}
+            </button>
 
-        {/* Step indicator */}
-        {isBusy && (
-          <div className="mt-5 flex items-center justify-center gap-2">
-            {STEPS.map((step, i) => {
-              const stepNum = i + 1;
-              const isActive = phase >= stepNum;
-              const isCurrent = phase === stepNum;
-              return (
-                <div key={step.key} className="flex items-center gap-2">
-                  <div
-                    className={`flex items-center gap-1.5 rounded-full px-3 py-1 text-xs font-medium transition-all duration-300 ${
-                      isActive
-                        ? "bg-success/15 text-success"
-                        : "bg-zinc-800/50 text-text-secondary/50"
-                    } ${isCurrent ? "ring-1 ring-success/30" : ""}`}
-                  >
-                    {isActive && stepNum < 4 ? (
-                      <svg className="h-3 w-3" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}>
-                        <path strokeLinecap="round" strokeLinejoin="round" d="M5 13l4 4L19 7" />
-                      </svg>
-                    ) : isActive && stepNum === 4 ? (
-                      <svg className="h-3 w-3" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}>
-                        <path strokeLinecap="round" strokeLinejoin="round" d="M5 13l4 4L19 7" />
-                      </svg>
-                    ) : (
-                      <span className="h-3 w-3 rounded-full border border-current" />
-                    )}
-                    {step.label}
-                  </div>
-                  {i < STEPS.length - 1 && (
-                    <div
-                      className={`h-px w-4 transition-colors duration-300 ${
-                        phase > stepNum ? "bg-success/40" : "bg-zinc-700/40"
-                      }`}
-                    />
-                  )}
-                </div>
-              );
-            })}
-          </div>
+            {isBusy && (
+              <div className="mt-5 flex items-center justify-center gap-2">
+                {STEPS.map((step, i) => {
+                  const stepNum = i + 1;
+                  const isActive = phase >= stepNum;
+                  const isCurrent = phase === stepNum;
+                  return (
+                    <div key={step.key} className="flex items-center gap-2">
+                      <div
+                        className={`flex items-center gap-1.5 rounded-full px-3 py-1 text-xs font-medium transition-all duration-300 ${
+                          isActive
+                            ? "bg-success/15 text-success"
+                            : "bg-zinc-800/50 text-text-secondary/50"
+                        } ${isCurrent ? "ring-1 ring-success/30" : ""}`}
+                      >
+                        {isActive && stepNum < 4 ? (
+                          <svg className="h-3 w-3" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}>
+                            <path strokeLinecap="round" strokeLinejoin="round" d="M5 13l4 4L19 7" />
+                          </svg>
+                        ) : isActive && stepNum === 4 ? (
+                          <svg className="h-3 w-3" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}>
+                            <path strokeLinecap="round" strokeLinejoin="round" d="M5 13l4 4L19 7" />
+                          </svg>
+                        ) : (
+                          <span className="h-3 w-3 rounded-full border border-current" />
+                        )}
+                        {step.label}
+                      </div>
+                      {i < STEPS.length - 1 && (
+                        <div
+                          className={`h-px w-4 transition-colors duration-300 ${
+                            phase > stepNum ? "bg-success/40" : "bg-zinc-700/40"
+                          }`}
+                        />
+                      )}
+                    </div>
+                  );
+                })}
+              </div>
+            )}
+
+            {error ? (
+              <motion.p
+                initial={{ opacity: 0, y: -10 }}
+                animate={{ opacity: 1, y: 0 }}
+                className="mt-4 rounded-xl border border-danger/40 bg-danger/10 px-4 py-3 text-sm text-red-200"
+              >
+                {error}
+              </motion.p>
+            ) : null}
+          </motion.div>
         )}
+      </AnimatePresence>
 
-        {error ? (
-          <p className="mt-4 rounded-xl border border-danger/40 bg-danger/10 px-4 py-3 text-sm text-red-200">
-            {error}
-          </p>
-        ) : null}
-      </div>
-
-      {result ? <Dashboard result={result} /> : null}
+      {/* Skeleton loading while processing */}
+      {status === "processing" && (
+        <motion.div
+          key="skeleton"
+          initial={{ opacity: 0 }}
+          animate={{ opacity: 1 }}
+          transition={{ delay: 0.5 }}
+        >
+          <SkeletonGrid />
+        </motion.div>
+      )}
     </section>
   );
 }
