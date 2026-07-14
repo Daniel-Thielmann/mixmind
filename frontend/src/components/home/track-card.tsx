@@ -37,8 +37,11 @@ export function TrackCard({
         </p>
       </header>
 
-      <dl className="grid grid-cols-3 gap-3 rounded-xl border border-zinc-800 bg-zinc-900/65 p-4 text-sm">
+      {/* Alterado para 4 colunas em telas maiores para caber a Key */}
+      <dl className="grid grid-cols-2 md:grid-cols-4 gap-3 rounded-xl border border-zinc-800 bg-zinc-900/65 p-4 text-sm">
         <Metric label="BPM" value={analysis.bpm.toFixed(2)} />
+        {/* Novo Componente para a Roda de Camelot */}
+        <CamelotMetric label="Key" value={analysis.camelot || "N/A"} />
         <Metric label="Duration" value={formatDuration(analysis.duration)} />
         <Metric label="Energy" value={formatEnergy(analysis.energy)} />
       </dl>
@@ -134,6 +137,22 @@ function Metric({ label, value }: { label: string; value: string }) {
         {label}
       </dt>
       <dd className="mt-1 font-semibold text-text">{value}</dd>
+    </div>
+  );
+}
+
+// Novo componente com estilização Neon Blue para destacar o código Camelot
+function CamelotMetric({ label, value }: { label: string; value: string }) {
+  return (
+    <div>
+      <dt className="text-xs uppercase tracking-[0.13em] text-text-secondary">
+        {label}
+      </dt>
+      <dd className="mt-1">
+        <span className="inline-flex items-center justify-center rounded bg-cyan-950/40 px-2 py-0.5 text-sm font-bold tracking-widest text-cyan-400 border border-cyan-800/50 shadow-[0_0_10px_rgba(34,211,238,0.3)]">
+          {value}
+        </span>
+      </dd>
     </div>
   );
 }

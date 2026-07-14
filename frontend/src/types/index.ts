@@ -4,6 +4,8 @@ export interface AudioAnalysis {
   sample_rate: number;
   bpm: number;
   energy: number;
+  key?: string;       // KEY added
+  camelot?: string;  // Camelot Whell added
 }
 
 export interface CompatibilityResult {
@@ -12,6 +14,7 @@ export interface CompatibilityResult {
   energy_difference: number;
   tempo_match: string;
   energy_match: string;
+  harmonic_match?: string;  // Nova métrica: compatibilidade harmônica
   overall_rating: string;
 }
 
