@@ -16,22 +16,41 @@ interface RadarChartProps {
   compatibility: CompatibilityResult;
 }
 
+// Harmonia convertida em pontuação numérica para apresentção no chart 
+function getHarmonicScore(match: string | undefined): number {
+  if (!match) return 0;
+  const lowerMatch = match.toLowerCase();
+  
+  if (lowerMatch.includes("perfect")) return 100;
+  if (lowerMatch.includes("excellent")) return 90;
+  if (lowerMatch.includes("very good")) return 85;
+  if (lowerMatch.includes("good")) return 80;
+  if (lowerMatch.includes("compatible")) return 75;
+  if (lowerMatch.includes("fair")) return 50;
+  if (lowerMatch.includes("clash")) return 20;
+  
+  return 0;
+}
+
 export function RadarChartCard({
   recommendation: r,
   compatibility,
 }: RadarChartProps) {
+  // Ajuste de segurança caso r.risk_level venha indefinido no fallback
   const riskScore =
-    r.risk_level.toLowerCase() === "low"
+    r.risk_level?.toLowerCase() === "low"
       ? 80
-      : r.risk_level.toLowerCase() === "medium"
+      : r.risk_level?.toLowerCase() === "medium"
         ? 50
         : 20;
 
+  // Inserindo a Harmonia (Hexágono agora)
   const data = [
-    { axis: "Tempo", value: Math.min(compatibility.compatibility_score, 100) },
-    { axis: "Energy", value: Math.min(100 - compatibility.energy_difference * 500, 100) },
-    { axis: "Compatibility", value: compatibility.compatibility_score },
-    { axis: "Confidence", value: r.confidence },
+    { axis: "Tempo", value: Math.min(compatibility.compatibility_score || 0, 100) },
+    { axis: "Energy", value: Math.max(0, Math.min(100 - (compatibility.energy_difference || 0) * 500, 100)) },
+    { axis: "Harmony", value: getHarmonicScore(compatibility.harmonic_match) },
+    { axis: "Compatibility", value: compatibility.compatibility_score || 0 },
+    { axis: "Confidence", value: r.confidence || 0 },
     { axis: "Risk", value: riskScore },
   ];
 
@@ -63,9 +82,9 @@ export function RadarChartCard({
           <Radar
             name="Score"
             dataKey="value"
-            stroke="#44f3d0"
-            fill="#44f3d0"
-            fillOpacity={0.15}
+            stroke="#22d3ee" 
+            fill="#22d3ee"
+            fillOpacity={0.2}
             strokeWidth={2}
           />
         </RechartsRadar>

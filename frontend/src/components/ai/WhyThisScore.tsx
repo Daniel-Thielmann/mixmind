@@ -21,6 +21,13 @@ export function WhyThisScore({ compatibility }: WhyThisScoreProps) {
       good: ["Excellent", "Very Good", "Good"].includes(compatibility.energy_match),
     },
     {
+      label: "Harmonic Match",
+      value: compatibility.harmonic_match || "N/A",
+      good: ["Perfect", "Excellent", "Very Good", "Good", "Compatible"].includes(
+        compatibility.harmonic_match || ""
+      ),
+    },
+    {
       label: "Overall Rating",
       value: compatibility.overall_rating,
       good: ["Excellent", "Very Good", "Good"].includes(compatibility.overall_rating),
