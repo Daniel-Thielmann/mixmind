@@ -32,17 +32,17 @@ export function AIRecommendationCard({
     >
       <div className="mb-5 flex flex-wrap items-center justify-between gap-3">
         <h3 className="text-lg font-semibold text-text">AI Recommendation</h3>
-        <RiskBadge level={r.risk_level} />
+        <RiskBadge level={r.risk_level || "Unknown"} />
       </div>
 
       <Block icon={Sparkles} title="Summary">
         <p className="rounded-xl border border-primary/10 bg-primary/2 px-5 py-4 text-sm font-medium italic leading-relaxed text-text/90">
-          {r.summary}
+          {r.summary || "AI summary generation pending or unavailable."}
         </p>
       </Block>
 
       <Block icon={Route} title="Mix Direction">
-        <Stat value={r.mix_direction} />
+        <Stat value={r.mix_direction || "Review the transition manually before mixing."} />
       </Block>
 
       <Block icon={Gauge} title="Tempo Analysis">
@@ -52,8 +52,8 @@ export function AIRecommendationCard({
             gridTemplateColumns: "repeat(auto-fit, minmax(240px, 1fr))",
           }}
         >
-          <MiniStat label="Difference" value={r.tempo_analysis.difference} />
-          <MiniStat label="Recommendation" value={r.tempo_analysis.recommendation} />
+          <MiniStat label="Difference" value={r.tempo_analysis?.difference || "N/A"} />
+          <MiniStat label="Recommendation" value={r.tempo_analysis?.recommendation || "N/A"} />
         </div>
       </Block>
 
@@ -64,8 +64,8 @@ export function AIRecommendationCard({
             gridTemplateColumns: "repeat(auto-fit, minmax(240px, 1fr))",
           }}
         >
-          <MiniStat label="Difference" value={r.energy_analysis.difference} />
-          <MiniStat label="Recommendation" value={r.energy_analysis.recommendation} />
+          <MiniStat label="Difference" value={r.energy_analysis?.difference || "N/A"} />
+          <MiniStat label="Recommendation" value={r.energy_analysis?.recommendation || "N/A"} />
         </div>
       </Block>
 
@@ -76,14 +76,14 @@ export function AIRecommendationCard({
             gridTemplateColumns: "repeat(auto-fit, minmax(240px, 1fr))",
           }}
         >
-          <MiniStat label="Before" value={r.mix_strategy.before_transition} />
-          <MiniStat label="During" value={r.mix_strategy.during_transition} />
-          <MiniStat label="After" value={r.mix_strategy.after_transition} />
+          <MiniStat label="Before" value={r.mix_strategy?.before_transition || "Prepare tracks."} />
+          <MiniStat label="During" value={r.mix_strategy?.during_transition || "Execute blend."} />
+          <MiniStat label="After" value={r.mix_strategy?.after_transition || "Monitor levels."} />
         </div>
       </Block>
 
       <Block icon={Swords} title="Risks">
-        {r.risks.length > 0 ? (
+        {r.risks && r.risks.length > 0 ? (
           <div className="flex flex-wrap gap-2">
             {r.risks.map((risk, i) => (
               <span
@@ -158,7 +158,7 @@ function Block({
   if (!condition) return null;
   return (
     <div className="mb-5 last:mb-0">
-      <h4 className="mb-3 flex items-center gap-2 text-xs font-semibold uppercase tracking-[0.15em] text-text-secondary">
+      <h4 className="mb-3 flex items-center gap-2 text-xs font-semibold uppercase tracking-[0.15em] text-cyan-400 drop-shadow-[0_0_8px_rgba(34,211,238,0.3)]">
         <Icon className="h-3.5 w-3.5 shrink-0" />
         {title}
       </h4>
