@@ -1,6 +1,5 @@
 from pydantic import BaseModel, Field
 
-
 class CompatibilityResult(BaseModel):
     """Heuristic compatibility summary for two analyzed tracks."""
 
@@ -15,7 +14,9 @@ class CompatibilityResult(BaseModel):
     )
     tempo_match: str = Field(description="Textual tempo similarity rating.")
     energy_match: str = Field(description="Textual energy similarity rating.")
+    harmonic_match: str = Field(
+        description="Textual harmonic similarity rating based on the Camelot Wheel."
+    )
     overall_rating: str = Field(description="Overall compatibility classification.")
-
 
 Recommendation = CompatibilityResult

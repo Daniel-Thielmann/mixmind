@@ -38,34 +38,30 @@ class MixScoringService:
             recommended_transition_length=transition_length,
         )
 
-    # ------------------------------------------------------------------
     # DJ Score (0-100)
-    # ------------------------------------------------------------------
-
     def compute_explanation(self, mix_score: MixScore) -> str:
         """Return a human-readable explanation of the DJ score (M10).
 
         Injected into ``professional_notes`` by the agent.
         """
-        compat_part = "Compatibility Score is the primary factor."
-        if mix_score.dj_score >= 95:
-            compat_part = "Near-perfect backend compatibility."
-        elif mix_score.dj_score >= 80:
-            compat_part = "Strong backend compatibility across tempo and energy."
-        elif mix_score.dj_score >= 60:
-            compat_part = "Good backend compatibility with minor tempo or energy gaps."
+        # Agora a Harmonia também entra na conta da IA
+        compat_part = "Harmonic, Tempo, and Energy compatibility factored."
+        if mix_score.dj_score >= 90:
+            compat_part = "Near-perfect harmony and rhythm match."
+        elif mix_score.dj_score >= 75:
+            compat_part = "Strong overall compatibility, likely a good Camelot or Tempo match."
+        elif mix_score.dj_score >= 55:
+            compat_part = "Fair compatibility. Watch out for potential harmonic clashes or BPM jumps."
         elif mix_score.dj_score >= 40:
-            compat_part = (
-                "Moderate compatibility — tempo or energy differences are noticeable."
-            )
+            compat_part = "Moderate compatibility — requires EQ work to mask energy or key differences."
         else:
-            compat_part = "Low compatibility — significant tempo or energy mismatch."
+            compat_part = "Low compatibility — significant Camelot wheel clash or energy mismatch."
 
         diff_part = f"Mix difficulty is {mix_score.mix_difficulty.lower()}."
         if mix_score.mix_difficulty in ("Very Easy", "Easy"):
-            diff_part += " Smooth transition expected."
+            diff_part += " Smooth, long blend expected."
         elif mix_score.mix_difficulty == "Expert":
-            diff_part += " Requires careful manual control."
+            diff_part += " Requires precise phrasing and manual EQ/Filter control."
 
         return (
             f"DJ Score: {mix_score.dj_score}/100 — {compat_part} "
@@ -77,23 +73,19 @@ class MixScoringService:
     def _compute_dj_score(compatibility_score: float) -> int:
         """Map compatibility_score (0-100) to a DJ score (0-100).
 
-        Uses the same thresholds as CompatibilityService._overall_rating
-        for consistency.
+        Atualizado para refletir os novos thresholds do CompatibilityService (90/75/55/40).
         """
-        if compatibility_score >= 95.0:
+        if compatibility_score >= 90.0:
             return 98
-        if compatibility_score >= 80.0:
+        if compatibility_score >= 75.0:
             return 85
-        if compatibility_score >= 60.0:
+        if compatibility_score >= 55.0:
             return 70
         if compatibility_score >= 40.0:
             return 50
         return 30
 
-    # ------------------------------------------------------------------
     # Mix Difficulty
-    # ------------------------------------------------------------------
-
     @staticmethod
     def _compute_mix_difficulty(
         tempo_difference: float,
@@ -102,21 +94,17 @@ class MixScoringService:
     ) -> str:
         """Determine mix difficulty from tempo, compatibility, and energy.
 
-        Very Easy:  BPM diff <= 2 AND score >= 80 AND energy diff <= 0.05
-        Easy:       BPM diff <= 5 AND score >= 60 AND energy diff <= 0.10
-        Medium:     BPM diff <= 8 AND score >= 40 AND energy diff <= 0.20
-        Hard:       BPM diff <= 12 OR score >= 20
-        Expert:     Otherwise
+        Atualizado com os novos thresholds de compatibility_score.
         """
         if (
             tempo_difference <= 2.0
-            and compatibility_score >= 80.0
+            and compatibility_score >= 75.0
             and energy_difference <= 0.05
         ):
             return "Very Easy"
         if (
             tempo_difference <= 5.0
-            and compatibility_score >= 60.0
+            and compatibility_score >= 55.0
             and energy_difference <= 0.10
         ):
             return "Easy"
@@ -126,27 +114,18 @@ class MixScoringService:
             and energy_difference <= 0.20
         ):
             return "Medium"
-        if tempo_difference <= 12.0 or compatibility_score >= 20.0:
+        if tempo_difference <= 12.0 or compatibility_score <= 30.0:
             return "Hard"
         return "Expert"
 
-    # ------------------------------------------------------------------
     # Transition Length
-    # ------------------------------------------------------------------
-
     @staticmethod
     def _compute_transition_length(
         tempo_difference: float,
         energy_difference: float,
         compatibility_score: float,
     ) -> str:
-        """Pick a transition bar count aligned with the mix difficulty.
-
-        64 bars:  Very Easy (long, smooth blend possible)
-        32 bars:  Easy / Medium (moderate blend)
-        16 bars:  Hard (shorter, more controlled)
-        8 bars:   Expert (short, punchy)
-        """
+        """Pick a transition bar count aligned with the mix difficulty."""
         difficulty = MixScoringService._compute_mix_difficulty(
             tempo_difference, compatibility_score, energy_difference
         )
