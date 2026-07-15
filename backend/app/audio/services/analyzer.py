@@ -95,29 +95,79 @@ class AudioAnalyzer:
         logger.info("  Key detected: %s", detected)
         return detected
 
-    def analyze(self, audio_path: Path) -> AudioAnalysis:
+    def analyze(
+        self,
+        audio_path: Path,
+        audio_data: np.ndarray | None = None,
+        sample_rate: int | None = None,
+    ) -> AudioAnalysis:
         """
         Analyze an audio file and extract its main characteristics.
+
+        Parameters
+        ----------
+        audio_path : Path
+            Path to the audio file (used for metadata even if audio_data provided).
+        audio_data : np.ndarray | None
+            Pre-loaded mono audio array. If None, loads from file.
+        sample_rate : int | None
+            Sample rate corresponding to audio_data. Required if audio_data provided.
         """
         logger.info("  AudioAnalyzer starting for: %s", audio_path.name)
         log_memory("AudioAnalyzer start")
 
+        # ---- File info before load ----
         try:
-            # POTENCIAL GARGALO: librosa.load carrega o arquivo inteiro em memória
-            logger.info("  Loading audio file...")
-            load_start = time.monotonic()
-            audio_data, sample_rate = librosa.load(
-                audio_path,
-                sr=None,
-                mono=True,
-            )
+            file_size = audio_path.stat().st_size
+            file_ext = audio_path.suffix.lower()
+            file_exists = audio_path.exists()
             logger.info(
-                "  Audio loaded in %.2f s | duration: %.2f s | sr: %d",
-                time.monotonic() - load_start,
-                librosa.get_duration(y=audio_data, sr=sample_rate),
-                sample_rate,
+                "  File info: path=%s | exists=%s | size=%d bytes (%.2f MB) | ext=%s",
+                audio_path,
+                file_exists,
+                file_size,
+                file_size / (1024 * 1024),
+                file_ext,
             )
-            log_memory("After librosa.load")
+
+            sf_info = sf.info(str(audio_path))
+            logger.info(
+                "  soundfile.info: samplerate=%d | channels=%d | frames=%d"
+                " | duration=%.2f s | subtype=%s",
+                sf_info.samplerate,
+                sf_info.channels,
+                sf_info.frames,
+                sf_info.duration,
+                sf_info.subtype,
+            )
+        except Exception:
+            logger.exception("  File info gathering failed (non-fatal)")
+            sf_info = None
+
+        try:
+            if audio_data is not None and sample_rate is not None:
+                logger.info("  Using pre-loaded audio data (single-load optimization)")
+            else:
+                logger.info("  Loading audio file...")
+                load_start = time.monotonic()
+                audio_data, sample_rate = librosa.load(
+                    audio_path,
+                    sr=None,
+                    mono=True,
+                )
+                load_elapsed = time.monotonic() - load_start
+                log_memory("After librosa.load")
+                logger.info(
+                    "  Audio loaded in %.2f s | dtype=%s | shape=%s"
+                    " | nbytes=%d (%.2f MB) | sr=%d | duration=%.2f s",
+                    load_elapsed,
+                    audio_data.dtype,
+                    audio_data.shape,
+                    audio_data.nbytes,
+                    audio_data.nbytes / (1024 * 1024),
+                    sample_rate,
+                    librosa.get_duration(y=audio_data, sr=sample_rate),
+                )
 
             duration = librosa.get_duration(
                 y=audio_data,

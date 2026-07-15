@@ -1,8 +1,11 @@
+import gc
 import json
 import logging
 import time
 from uuid import uuid4
 
+import librosa
+import numpy as np
 from app.ai.agent import DJAgent, dj_agent
 from app.ai.schemas import (
     AIRecommendationResponse,
@@ -39,6 +42,40 @@ from fastapi import UploadFile
 logger = logging.getLogger(__name__)
 
 
+def _load_audio_once(path, label: str) -> tuple[np.ndarray, int]:
+    """Load audio from disk exactly once. Used by AnalysisService to
+    share the same ndarray across AudioAnalyzer, WaveformGenerator,
+    and SpectrogramGenerator."""
+    logger.info("  Loading audio for %s: %s", label, path.name)
+    log_memory(f"Before load {label}")
+    load_start = time.monotonic()
+    audio_data, sr = librosa.load(path, sr=None, mono=True)
+    elapsed = time.monotonic() - load_start
+    log_memory(f"After load {label}")
+    logger.info(
+        "  Audio %s loaded in %.2f s | dtype=%s | shape=%s"
+        " | nbytes=%d (%.2f MB) | sr=%d",
+        label,
+        elapsed,
+        audio_data.dtype,
+        audio_data.shape,
+        audio_data.nbytes,
+        audio_data.nbytes / (1024 * 1024),
+        sr,
+    )
+    return audio_data, sr
+
+
+def _release_audio(label: str, *arrays) -> None:
+    """Delete numpy arrays and force garbage collection."""
+    for arr in arrays:
+        if arr is not None:
+            del arr
+    gc.collect()
+    log_memory(f"After release {label}")
+    logger.info("  Released memory for %s", label)
+
+
 class AnalysisService:
     """
     Orchestrates the analysis pipeline.
@@ -72,7 +109,7 @@ class AnalysisService:
         """Store both uploads, analyze them, and return the API response."""
 
         logger.info("=" * 60)
-        logger.info("Starting analysis pipeline")
+        logger.info("Starting analysis pipeline (single-load optimized)")
         logger.info("=" * 60)
         log_memory("Initial")
         pipeline_start = time.monotonic()
@@ -99,10 +136,11 @@ class AnalysisService:
         # ---- Step 2 - Audio analysis Track A ----
         step_start = time.monotonic()
         try:
+            audio_data_a, sr_a = _load_audio_once(path_a, "Track A")
             log_memory("Before AudioAnalyzer A")
-            analysis_a = self._analyzer.analyze(path_a).model_copy(
-                update={"filename": track_a.filename or ""}
-            )
+            analysis_a = self._analyzer.analyze(
+                path_a, audio_data=audio_data_a, sample_rate=sr_a
+            ).model_copy(update={"filename": track_a.filename or ""})
             log_memory("After AudioAnalyzer A")
             logger.info(
                 "Step 2 - Audio analysis Track A completed in %.2f s",
@@ -112,65 +150,80 @@ class AnalysisService:
             logger.exception("Step 2 - Audio analysis Track A FAILED")
             raise
 
-        # ---- Step 3 - Audio analysis Track B ----
-        step_start = time.monotonic()
-        try:
-            log_memory("Before AudioAnalyzer B")
-            analysis_b = self._analyzer.analyze(path_b).model_copy(
-                update={"filename": track_b.filename or ""}
-            )
-            log_memory("After AudioAnalyzer B")
-            logger.info(
-                "Step 3 - Audio analysis Track B completed in %.2f s",
-                time.monotonic() - step_start,
-            )
-        except Exception:
-            logger.exception("Step 3 - Audio analysis Track B FAILED")
-            raise
-
-        # ---- Step 4 - Waveform Track A ----
+        # ---- Step 3 - Waveform Track A (reuses audio_data_a) ----
         step_start = time.monotonic()
         try:
             log_memory("Before Waveform A")
-            waveform_a = self._waveform_generator.generate(path_a)
+            waveform_a = self._waveform_generator.generate(
+                path_a, audio_data=audio_data_a, sample_rate=sr_a
+            )
             log_memory("After Waveform A")
             logger.info(
-                "Step 4 - Waveform Track A completed in %.2f s",
+                "Step 3 - Waveform Track A completed in %.2f s",
                 time.monotonic() - step_start,
             )
         except Exception:
-            logger.exception("Step 4 - Waveform Track A FAILED")
+            logger.exception("Step 3 - Waveform Track A FAILED")
             raise
 
-        # ---- Step 5 - Waveform Track B ----
-        step_start = time.monotonic()
-        try:
-            log_memory("Before Waveform B")
-            waveform_b = self._waveform_generator.generate(path_b)
-            log_memory("After Waveform B")
-            logger.info(
-                "Step 5 - Waveform Track B completed in %.2f s",
-                time.monotonic() - step_start,
-            )
-        except Exception:
-            logger.exception("Step 5 - Waveform Track B FAILED")
-            raise
+        # ---- Release audio_data_a BEFORE Spectrogram to free ~25 MB ----
+        _release_audio("Track A audio (before Spectrogram)", audio_data_a)
+        audio_data_a = None
+        gc.collect()
 
-        # ---- Step 6 - Spectrogram Track A ----
+        # ---- Step 4 - Spectrogram Track A (loads fresh — no audio_data alive) ----
         step_start = time.monotonic()
         try:
             log_memory("Before Spectrogram A")
             spectrogram_a = self._spectrogram_generator.generate(path_a)
             log_memory("After Spectrogram A")
             logger.info(
-                "Step 6 - Spectrogram Track A completed in %.2f s",
+                "Step 4 - Spectrogram Track A completed in %.2f s",
                 time.monotonic() - step_start,
             )
         except Exception:
-            logger.exception("Step 6 - Spectrogram Track A FAILED")
+            logger.exception("Step 4 - Spectrogram Track A FAILED")
             raise
 
-        # ---- Step 7 - Spectrogram Track B ----
+        # ---- Step 5 - Audio analysis Track B ----
+        step_start = time.monotonic()
+        try:
+            audio_data_b, sr_b = _load_audio_once(path_b, "Track B")
+            log_memory("Before AudioAnalyzer B")
+            analysis_b = self._analyzer.analyze(
+                path_b, audio_data=audio_data_b, sample_rate=sr_b
+            ).model_copy(update={"filename": track_b.filename or ""})
+            log_memory("After AudioAnalyzer B")
+            logger.info(
+                "Step 5 - Audio analysis Track B completed in %.2f s",
+                time.monotonic() - step_start,
+            )
+        except Exception:
+            logger.exception("Step 5 - Audio analysis Track B FAILED")
+            raise
+
+        # ---- Step 6 - Waveform Track B (reuses audio_data_b) ----
+        step_start = time.monotonic()
+        try:
+            log_memory("Before Waveform B")
+            waveform_b = self._waveform_generator.generate(
+                path_b, audio_data=audio_data_b, sample_rate=sr_b
+            )
+            log_memory("After Waveform B")
+            logger.info(
+                "Step 6 - Waveform Track B completed in %.2f s",
+                time.monotonic() - step_start,
+            )
+        except Exception:
+            logger.exception("Step 6 - Waveform Track B FAILED")
+            raise
+
+        # ---- Release audio_data_b BEFORE Spectrogram to free ~20 MB ----
+        _release_audio("Track B audio (before Spectrogram)", audio_data_b)
+        audio_data_b = None
+        gc.collect()
+
+        # ---- Step 7 - Spectrogram Track B (loads fresh — no audio_data alive) ----
         step_start = time.monotonic()
         try:
             log_memory("Before Spectrogram B")
