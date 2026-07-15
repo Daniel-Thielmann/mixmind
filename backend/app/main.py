@@ -33,9 +33,7 @@ using Digital Signal Processing (DSP) and Music Information Retrieval (MIR).
 
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=[
-        "http://localhost:3000",
-    ],
+    allow_origins=["http://localhost:3000", "https://mixmind-ai.vercel.app"],
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
