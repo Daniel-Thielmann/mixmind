@@ -1,6 +1,8 @@
 import gc
 import json
 import logging
+import os
+import subprocess
 import time
 from uuid import uuid4
 
@@ -36,33 +38,155 @@ from app.services.infrastructure.storage_service import (
     StorageService,
     storage_service,
 )
-from app.utils.log_utils import log_memory
+from app.utils.log_utils import (
+    get_memory_mb,
+    log_audio_metadata,
+    log_library_versions,
+    log_memory,
+)
 from fastapi import UploadFile
 
 logger = logging.getLogger(__name__)
+
+# ---- Startup instrumentation ----
+_logged_versions = False
+
+
+def _ensure_version_logged() -> None:
+    global _logged_versions
+    if not _logged_versions:
+        log_library_versions()
+        _logged_versions = True
+
+
+def _detect_load_backend(path) -> str:
+    """Detect which backend librosa will use for a given file."""
+    ext = os.path.splitext(str(path))[1].lower()
+    soundfile_exts = {".wav", ".flac", ".ogg", ".aiff", ".aif", ".au", ".pcm", ".svx"}
+    if ext in soundfile_exts:
+        return "soundfile"
+    else:
+        return "audioread (ffmpeg)"
+
+
+def _log_file_details(path, label: str) -> None:
+    """Log detailed file information before loading."""
+    try:
+        stat = os.stat(str(path))
+        ext = os.path.splitext(str(path))[1].lower()
+        backend = _detect_load_backend(path)
+        logger.info(
+            "  File [%s]: path=%s | size=%d bytes (%.2f MB) | ext=%s | backend=%s",
+            label,
+            path.name,
+            stat.st_size,
+            stat.st_size / (1024 * 1024),
+            ext,
+            backend,
+        )
+
+        # For audioread backends, check ffmpeg availability
+        if backend == "audioread (ffmpeg)":
+            try:
+                result = subprocess.run(
+                    ["ffmpeg", "-version"],
+                    capture_output=True,
+                    text=True,
+                    timeout=5,
+                )
+                first_line = result.stdout.split("\n")[0] if result.stdout else "N/A"
+                logger.info("  ffmpeg: %s", first_line)
+            except Exception as exc:
+                logger.info("  ffmpeg check failed: %s", exc)
+
+        # Try soundfile.info for metadata (works with most formats)
+        try:
+            import soundfile as sf
+
+            sf_info = sf.info(str(path))
+            logger.info(
+                "  soundfile.info [%s]: samplerate=%d | channels=%d | frames=%d"
+                " | duration=%.2f s | format=%s | subtype=%s",
+                label,
+                sf_info.samplerate,
+                sf_info.channels,
+                sf_info.frames,
+                sf_info.duration,
+                sf_info.format,
+                sf_info.subtype,
+            )
+        except Exception as exc:
+            logger.info("  soundfile.info [%s] not available: %s", label, exc)
+    except Exception as exc:
+        logger.warning("  File detail logging failed for %s: %s", label, exc)
 
 
 def _load_audio_once(path, label: str) -> tuple[np.ndarray, int]:
     """Load audio from disk exactly once. Used by AnalysisService to
     share the same ndarray across AudioAnalyzer, WaveformGenerator,
     and SpectrogramGenerator."""
-    logger.info("  Loading audio for %s: %s", label, path.name)
-    log_memory(f"Before load {label}")
+    mem_entry = get_memory_mb()
+    log_memory(f"Enter _load_audio_once {label}")
+
+    _ensure_version_logged()
+
+    log_memory(f"After version logging {label}")
+
+    logger.info("")
+    logger.info("=" * 50)
+    logger.info("  LOADING AUDIO: %s (%s)", label, path.name)
+    logger.info("=" * 50)
+
+    _log_file_details(path, label)
+
+    log_memory(f"After file details {label}")
+
+    mem_before_load = get_memory_mb()
+    log_memory(f"Before librosa.load {label}")
     load_start = time.monotonic()
-    audio_data, sr = librosa.load(path, sr=None, mono=True)
-    elapsed = time.monotonic() - load_start
+
+    # ---- librosa.load ----
+    # sr=None: native sample rate, no resampling
+    # mono=True: average channels to mono
+    _y, _sr = librosa.load(path, sr=None, mono=True)
+    audio_data: np.ndarray = _y
+    sr: int = int(_sr)
+
+    load_elapsed = time.monotonic() - load_start
+    mem_now = get_memory_mb()
     log_memory(f"After load {label}")
+
+    log_audio_metadata(label, audio_data, sr, load_elapsed)
+
+    delta_from_load = mem_now - mem_before_load
+    ndarray_mb = audio_data.nbytes / (1024 * 1024)
+    overhead_mb = delta_from_load - ndarray_mb
+
+    logger.info("")
+    logger.info("  --- MEMORY ACCOUNTING [%s] ---", label)
+    logger.info("  Memory at entry:        %.2f MB", mem_entry)
+    logger.info("  Memory BEFORE load:     %.2f MB", mem_before_load)
+    logger.info("  Memory AFTER load:      %.2f MB", mem_now)
+    logger.info("  Cost: version+file info: +%.2f MB", mem_before_load - mem_entry)
+    logger.info("  Delta (librosa.load):   +%.2f MB", delta_from_load)
+    logger.info("  ndarray.nbytes:         %.2f MB", ndarray_mb)
+    logger.info("  Overhead (delta - arr):  %.2f MB", overhead_mb)
     logger.info(
-        "  Audio %s loaded in %.2f s | dtype=%s | shape=%s"
-        " | nbytes=%d (%.2f MB) | sr=%d",
-        label,
-        elapsed,
-        audio_data.dtype,
-        audio_data.shape,
-        audio_data.nbytes,
-        audio_data.nbytes / (1024 * 1024),
-        sr,
+        "  Ratio (delta/ndarray):  %.1fx",
+        delta_from_load / ndarray_mb if ndarray_mb > 0 else 0,
     )
+    if overhead_mb > ndarray_mb * 2:
+        logger.warning(
+            "  *** HIGH MEMORY OVERHEAD [%s]: overhead (%.2f MB)"
+            " is %.1fx the ndarray size (%.2f MB) ***",
+            label,
+            overhead_mb,
+            overhead_mb / ndarray_mb if ndarray_mb > 0 else 0,
+            ndarray_mb,
+        )
+    logger.info("  --- END ACCOUNTING ---")
+    logger.info("")
+
     return audio_data, sr
 
 

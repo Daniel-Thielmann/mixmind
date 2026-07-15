@@ -1,5 +1,7 @@
 services:
   backend:
+    mem_limit: 512m
+
     container_name: mixmind-backend
 
     build:

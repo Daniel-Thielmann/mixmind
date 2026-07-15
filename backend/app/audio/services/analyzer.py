@@ -1,5 +1,7 @@
+import gc
 import logging
 import time
+import traceback
 from pathlib import Path
 
 import librosa
@@ -7,7 +9,10 @@ import numpy as np
 import soundfile as sf
 from app.core.exceptions import AudioAnalysisException
 from app.schemas.audio import AudioAnalysis
-from app.utils.log_utils import log_memory
+from app.utils.log_utils import (
+    log_memory,
+    log_memory_detail,
+)
 
 logger = logging.getLogger(__name__)
 
@@ -147,16 +152,20 @@ class AudioAnalyzer:
         try:
             if audio_data is not None and sample_rate is not None:
                 logger.info("  Using pre-loaded audio data (single-load optimization)")
+                duration = librosa.get_duration(y=audio_data, sr=sample_rate)
             else:
                 logger.info("  Loading audio file...")
                 load_start = time.monotonic()
-                audio_data, sample_rate = librosa.load(
+                _y, _sr = librosa.load(
                     audio_path,
                     sr=None,
                     mono=True,
                 )
+                audio_data = _y
+                sample_rate = int(_sr)
                 load_elapsed = time.monotonic() - load_start
                 log_memory("After librosa.load")
+                duration = librosa.get_duration(y=audio_data, sr=sample_rate)
                 logger.info(
                     "  Audio loaded in %.2f s | dtype=%s | shape=%s"
                     " | nbytes=%d (%.2f MB) | sr=%d | duration=%.2f s",
@@ -166,21 +175,102 @@ class AudioAnalyzer:
                     audio_data.nbytes,
                     audio_data.nbytes / (1024 * 1024),
                     sample_rate,
-                    librosa.get_duration(y=audio_data, sr=sample_rate),
+                    duration,
                 )
 
-            duration = librosa.get_duration(
-                y=audio_data,
-                sr=sample_rate,
+            # ================================================================
+            # BEAT_TRACK — INSTRUMENTED
+            # ================================================================
+            # Internamente o beat_track faz:
+            #   1. onset_strength = librosa.onset.onset_strength(y, sr)
+            #      - Cria espectrograma STFT internamente (n_fft=2048, hop_length=512)
+            #      - calcula mel-spectrogram (n_mels=128, fmax=11025)
+            #      - soma espectral ponderada por banda mel -> onset envelope
+            #      - O envelope de onset é um array 1D de tamanho ~ N/hop_length
+            #      - Para uma track de 2:30 @ 44100 Hz: ~12900 samples
+            #      - Isso são ~103 KB — não é o problema
+            #   2. tempo, beats = librosa.beat.beat_track(onset_envelope=onsets, sr=sr)
+            #      - Estima BPM via autocorrelação do envelope de onset
+            #      - Calcula beat frames via predição dinâmica
+            #      - A autocorrelação usa FFT (scipy.signal.fftconvolve ou np.fft)
+            #      - Objetos temporários: envelope FFT, autocorrelação, beat frames
+            # POSSÍVEL GARGALO: se a FFT criar arrays maiores que o esperado
+            # POSSÍVEL GARGALO: scipy.signal.fftconvolve pode alocar buffers 2x
+            # ================================================================
+            logger.info("")
+            logger.info("  === BEAT_TRACK START ===")
+            logger.info(
+                "  Input audio: shape=%s | dtype=%s | nbytes=%.2f MB | sr=%d",
+                audio_data.shape,
+                audio_data.dtype,
+                audio_data.nbytes / (1024 * 1024),
+                sample_rate,
             )
-
-            logger.info("  Computing BPM...")
+            log_memory_detail(
+                "Before beat_track", f"audio_data shape={audio_data.shape}"
+            )
             bpm_start = time.monotonic()
-            tempo, _ = librosa.beat.beat_track(
-                y=audio_data,
-                sr=sample_rate,
-            )
-            logger.info("  BPM computed in %.2f s", time.monotonic() - bpm_start)
+
+            try:
+                # ---- Início do beat_track ----
+                logger.info(
+                    "  Calling librosa.beat.beat_track(y, sr=%d)...", sample_rate
+                )
+                logger.info(
+                    "  (This will internally compute onset_strength + tempo estimation)"
+                )
+
+                tempo, beats = librosa.beat.beat_track(
+                    y=audio_data,
+                    sr=sample_rate,
+                )
+
+                bpm_elapsed = time.monotonic() - bpm_start
+                logger.info("  librosa.beat.beat_track returned")
+                beats_shape = beats.shape if hasattr(beats, "shape") else "N/A"
+                log_memory_detail(
+                    "After beat_track",
+                    f"tempo={tempo}, beats.shape={beats_shape}",
+                )
+                logger.info("  === BEAT_TRACK END (%.2f s) ===", bpm_elapsed)
+                logger.info("")
+
+            except Exception:
+                logger.error("  === BEAT_TRACK FAILED ===")
+                log_memory_detail("beat_track FAILED")
+                logger.error("  Traceback:\n%s", traceback.format_exc())
+                raise
+
+            # ---- Tarefa 5: gc.collect() após beat_track ----
+            gc.collect()
+            log_memory_detail("After beat_track + gc.collect")
+            logger.info("  === POST BEAT_TRACK GC ===")
+            # Verificar objetos grandes ainda vivos
+            large_objects: list[tuple[str, tuple[int, ...], type, int]] = []
+            for obj in gc.get_objects():
+                try:
+                    if isinstance(obj, np.ndarray) and obj.nbytes > 1024 * 1024:
+                        large_objects.append(
+                            (type(obj).__name__, obj.shape, obj.dtype, obj.nbytes)
+                        )
+                except ReferenceError:
+                    pass
+            if large_objects:
+                logger.info("  Large numpy arrays still alive after beat_track + gc:")
+                for i, (typ, shape, dtype, nbytes) in enumerate(large_objects):
+                    logger.info(
+                        "    [%d] %s shape=%s dtype=%s nbytes=%.2f MB",
+                        i,
+                        typ,
+                        shape,
+                        dtype,
+                        nbytes / (1024 * 1024),
+                    )
+            else:
+                logger.info(
+                    "  No large numpy arrays (>1 MB) alive after beat_track + gc"
+                )
+            logger.info("  === END POST BEAT_TRACK GC ===")
 
             logger.info("  Computing RMS energy...")
             rms = librosa.feature.rms(
