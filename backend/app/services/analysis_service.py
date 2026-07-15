@@ -1,4 +1,6 @@
 import json
+import logging
+import time
 from uuid import uuid4
 
 from app.ai.agent import DJAgent, dj_agent
@@ -31,7 +33,10 @@ from app.services.infrastructure.storage_service import (
     StorageService,
     storage_service,
 )
+from app.utils.log_utils import log_memory
 from fastapi import UploadFile
+
+logger = logging.getLogger(__name__)
 
 
 class AnalysisService:
@@ -66,28 +71,133 @@ class AnalysisService:
     ) -> UploadAnalysisResponse:
         """Store both uploads, analyze them, and return the API response."""
 
+        logger.info("=" * 60)
+        logger.info("Starting analysis pipeline")
+        logger.info("=" * 60)
+        log_memory("Initial")
+        pipeline_start = time.monotonic()
+
         analysis_id = uuid4().hex
 
-        path_a = self._storage.save_audio(track_a)
-        path_b = self._storage.save_audio(track_b)
+        # ---- Step 1 - Saving uploaded files ----
+        step_start = time.monotonic()
+        try:
+            log_memory("Before save")
+            path_a = self._storage.save_audio(track_a)
+            path_b = self._storage.save_audio(track_b)
+            log_memory("After save")
+            logger.info(
+                "Step 1 - Saving uploaded files completed in %.2f s | files: %s, %s",
+                time.monotonic() - step_start,
+                path_a.name,
+                path_b.name,
+            )
+        except Exception:
+            logger.exception("Step 1 - Saving uploaded files FAILED")
+            raise
 
-        analysis_a = self._analyzer.analyze(path_a).model_copy(
-            update={"filename": track_a.filename or ""}
-        )
-        analysis_b = self._analyzer.analyze(path_b).model_copy(
-            update={"filename": track_b.filename or ""}
-        )
+        # ---- Step 2 - Audio analysis Track A ----
+        step_start = time.monotonic()
+        try:
+            log_memory("Before AudioAnalyzer A")
+            analysis_a = self._analyzer.analyze(path_a).model_copy(
+                update={"filename": track_a.filename or ""}
+            )
+            log_memory("After AudioAnalyzer A")
+            logger.info(
+                "Step 2 - Audio analysis Track A completed in %.2f s",
+                time.monotonic() - step_start,
+            )
+        except Exception:
+            logger.exception("Step 2 - Audio analysis Track A FAILED")
+            raise
 
-        waveform_a = self._waveform_generator.generate(path_a)
-        waveform_b = self._waveform_generator.generate(path_b)
+        # ---- Step 3 - Audio analysis Track B ----
+        step_start = time.monotonic()
+        try:
+            log_memory("Before AudioAnalyzer B")
+            analysis_b = self._analyzer.analyze(path_b).model_copy(
+                update={"filename": track_b.filename or ""}
+            )
+            log_memory("After AudioAnalyzer B")
+            logger.info(
+                "Step 3 - Audio analysis Track B completed in %.2f s",
+                time.monotonic() - step_start,
+            )
+        except Exception:
+            logger.exception("Step 3 - Audio analysis Track B FAILED")
+            raise
 
-        spectrogram_a = self._spectrogram_generator.generate(path_a)
-        spectrogram_b = self._spectrogram_generator.generate(path_b)
+        # ---- Step 4 - Waveform Track A ----
+        step_start = time.monotonic()
+        try:
+            log_memory("Before Waveform A")
+            waveform_a = self._waveform_generator.generate(path_a)
+            log_memory("After Waveform A")
+            logger.info(
+                "Step 4 - Waveform Track A completed in %.2f s",
+                time.monotonic() - step_start,
+            )
+        except Exception:
+            logger.exception("Step 4 - Waveform Track A FAILED")
+            raise
 
-        compatibility = self._compatibility.compare(
-            analysis_a,
-            analysis_b,
-        )
+        # ---- Step 5 - Waveform Track B ----
+        step_start = time.monotonic()
+        try:
+            log_memory("Before Waveform B")
+            waveform_b = self._waveform_generator.generate(path_b)
+            log_memory("After Waveform B")
+            logger.info(
+                "Step 5 - Waveform Track B completed in %.2f s",
+                time.monotonic() - step_start,
+            )
+        except Exception:
+            logger.exception("Step 5 - Waveform Track B FAILED")
+            raise
+
+        # ---- Step 6 - Spectrogram Track A ----
+        step_start = time.monotonic()
+        try:
+            log_memory("Before Spectrogram A")
+            spectrogram_a = self._spectrogram_generator.generate(path_a)
+            log_memory("After Spectrogram A")
+            logger.info(
+                "Step 6 - Spectrogram Track A completed in %.2f s",
+                time.monotonic() - step_start,
+            )
+        except Exception:
+            logger.exception("Step 6 - Spectrogram Track A FAILED")
+            raise
+
+        # ---- Step 7 - Spectrogram Track B ----
+        step_start = time.monotonic()
+        try:
+            log_memory("Before Spectrogram B")
+            spectrogram_b = self._spectrogram_generator.generate(path_b)
+            log_memory("After Spectrogram B")
+            logger.info(
+                "Step 7 - Spectrogram Track B completed in %.2f s",
+                time.monotonic() - step_start,
+            )
+        except Exception:
+            logger.exception("Step 7 - Spectrogram Track B FAILED")
+            raise
+
+        # ---- Step 8 - Compatibility Engine ----
+        step_start = time.monotonic()
+        try:
+            compatibility = self._compatibility.compare(
+                analysis_a,
+                analysis_b,
+            )
+            logger.info(
+                "Step 8 - Compatibility Engine completed in %.4f s",
+                time.monotonic() - step_start,
+            )
+        except Exception:
+            logger.exception("Step 8 - Compatibility Engine FAILED")
+            raise
 
         waveforms = Waveforms(
             track_a=waveform_a,
@@ -99,54 +209,94 @@ class AnalysisService:
             track_b=spectrogram_b,
         )
 
-        response = UploadAnalysisResponse(
-            status="success",
-            message="Tracks analyzed successfully",
-            analysis_id=analysis_id,
-            track_a=analysis_a,
-            track_b=analysis_b,
-            compatibility=compatibility,
-            ai_recommendation=AIRecommendationResponse(
-                summary="",
-                mix_direction="",
-                transition_quality="",
-                transition_type="",
-                confidence=0,
-                tempo_analysis=TempoAnalysis(difference="", recommendation=""),
-                energy_analysis=EnergyAnalysis(difference="", recommendation=""),
-                compatibility_analysis=CompatibilityAnalysis(
-                    score="", interpretation=""
+        # ---- Step 9 - Build API Response ----
+        step_start = time.monotonic()
+        try:
+            response = UploadAnalysisResponse(
+                status="success",
+                message="Tracks analyzed successfully",
+                analysis_id=analysis_id,
+                track_a=analysis_a,
+                track_b=analysis_b,
+                compatibility=compatibility,
+                ai_recommendation=AIRecommendationResponse(
+                    summary="",
+                    mix_direction="",
+                    transition_quality="",
+                    transition_type="",
+                    confidence=0,
+                    tempo_analysis=TempoAnalysis(difference="", recommendation=""),
+                    energy_analysis=EnergyAnalysis(difference="", recommendation=""),
+                    compatibility_analysis=CompatibilityAnalysis(
+                        score="", interpretation=""
+                    ),
+                    mix_strategy=MixStrategy(
+                        before_transition="",
+                        during_transition="",
+                        after_transition="",
+                    ),
+                    dj_execution=DJExecution(
+                        loop="",
+                        eq="",
+                        filter="",
+                        tempo_fader="",
+                        phrase_matching="",
+                        cue_point="",
+                    ),
+                    club_tip="",
+                    professional_notes="",
+                    risks=[],
+                    best_use_case="",
+                    risk_level="",
                 ),
-                mix_strategy=MixStrategy(
-                    before_transition="",
-                    during_transition="",
-                    after_transition="",
-                ),
-                dj_execution=DJExecution(
-                    loop="",
-                    eq="",
-                    filter="",
-                    tempo_fader="",
-                    phrase_matching="",
-                    cue_point="",
-                ),
-                club_tip="",
-                professional_notes="",
-                risks=[],
-                best_use_case="",
-                risk_level="",
-            ),
-            waveforms=waveforms,
-            spectrograms=spectrograms,
-        )
+                waveforms=waveforms,
+                spectrograms=spectrograms,
+            )
+            logger.info(
+                "Step 9 - Build API Response completed in %.4f s",
+                time.monotonic() - step_start,
+            )
+        except Exception:
+            logger.exception("Step 9 - Build API Response FAILED")
+            raise
 
-        ai_recommendation = self._ai_agent.recommend(response)
-        response = response.model_copy(update={"ai_recommendation": ai_recommendation})
+        # ---- Step 10 - AI Recommendation ----
+        step_start = time.monotonic()
+        try:
+            log_memory("Before AI")
+            ai_recommendation = self._ai_agent.recommend(response)
+            response = response.model_copy(
+                update={"ai_recommendation": ai_recommendation}
+            )
+            log_memory("After AI")
+            logger.info(
+                "Step 10 - AI Recommendation completed in %.2f s",
+                time.monotonic() - step_start,
+            )
+        except Exception:
+            logger.exception("Step 10 - AI Recommendation FAILED")
+            raise
 
-        self._write_analysis_metadata(
-            analysis_id,
-            response,
-        )
+        # ---- Step 11 - Write analysis.json ----
+        step_start = time.monotonic()
+        try:
+            self._write_analysis_metadata(
+                analysis_id,
+                response,
+            )
+            logger.info(
+                "Step 11 - Write analysis.json completed in %.4f s",
+                time.monotonic() - step_start,
+            )
+        except Exception:
+            logger.exception("Step 11 - Write analysis.json FAILED")
+            raise
+
+        total_time = time.monotonic() - pipeline_start
+        log_memory("Final")
+        logger.info("=" * 60)
+        logger.info("Analysis completed successfully | Total time: %.2f s", total_time)
+        logger.info("=" * 60)
 
         return response
 

@@ -25,6 +25,7 @@ from app.services.mix_scoring_service import (
     MixScoringService,
     mix_scoring_service,
 )
+from app.utils.log_utils import log_memory
 from pydantic import ValidationError
 
 logger = logging.getLogger(__name__)
@@ -77,12 +78,19 @@ class DJAgent:
         return (track_a_data, track_b_data, compat_data)
 
     def recommend(self, response: UploadAnalysisResponse) -> Any:
+        logger.info("  DJAgent.recommend() starting")
+        log_memory("AI start")
         self._metrics_collector.record_request()
 
         mix_score = self._mix_scorer.compute(
             compatibility_score=response.compatibility.compatibility_score,
             tempo_difference=response.compatibility.tempo_difference,
             energy_difference=response.compatibility.energy_difference,
+        )
+        logger.info(
+            "  MixScore computed: %d/100, difficulty=%s",
+            mix_score.dj_score,
+            mix_score.mix_difficulty,
         )
 
         rule_output = self._rule_engine.build(response, mix_score)
@@ -97,8 +105,12 @@ class DJAgent:
             elapsed = 0.0
             attempts = 0
             fallback_occurred = False
+            logger.info(
+                "  Cache HIT — using cached AI result | model: %s", model or "unknown"
+            )
         else:
             self._metrics_collector.record_cache_miss()
+            logger.info("  Cache MISS — calling OpenRouter...")
 
             payload = self._build_payload(response, mix_score)
             messages = build_dj_messages(payload)
@@ -106,6 +118,12 @@ class DJAgent:
             start = time.monotonic()
 
             try:
+                logger.info(
+                    "  Calling OpenRouter (LLMManager.generate) with models: %s, %s",
+                    settings.OPENROUTER_MODEL,
+                    settings.OPENROUTER_MODELS,
+                )
+                log_memory("Before LLM call")
                 parsed, model, attempts = self._llm_manager.generate(
                     messages,
                     temperature=0.0,
@@ -115,11 +133,23 @@ class DJAgent:
                 llm_text = parsed
                 elapsed = time.monotonic() - start
                 fallback_occurred = False
+                logger.info(
+                    "  OpenRouter finished in %.2f s | model: %s | attempts: %d",
+                    elapsed,
+                    model,
+                    attempts,
+                )
+                log_memory("After LLM call")
             except LLMAllModelsFailed:
+                elapsed = time.monotonic() - start
+                logger.warning(
+                    "  LLMAllModelsFailed after %.2f s — using fallback text",
+                    elapsed,
+                )
+                logger.exception("  LLMAllModelsFailed traceback")
                 llm_text = self._fallback_text_dict()
                 model = ""
                 attempts = 0
-                elapsed = time.monotonic() - start
                 fallback_occurred = True
 
             llm_text["_cached_model"] = model

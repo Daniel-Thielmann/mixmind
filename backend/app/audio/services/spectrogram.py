@@ -1,3 +1,5 @@
+import logging
+import time
 from pathlib import Path
 from uuid import uuid4
 
@@ -7,6 +9,9 @@ import matplotlib.pyplot as plt
 import numpy as np
 from app.core.config import settings
 from app.schemas.spectrogram import SpectrogramResult
+from app.utils.log_utils import log_memory
+
+logger = logging.getLogger(__name__)
 
 
 class SpectrogramGenerator:
@@ -20,9 +25,21 @@ class SpectrogramGenerator:
     def generate(self, audio_path: Path) -> SpectrogramResult:
         """Render the spectrogram for an audio file and save it as PNG."""
 
+        logger.info("  SpectrogramGenerator starting for: %s", audio_path.name)
+        log_memory("Spectrogram start")
+        step_start = time.monotonic()
+
         self._output_dir.mkdir(parents=True, exist_ok=True)
 
+        # POTENCIAL GARGALO: terceiro librosa.load() do mesmo arquivo.
+        # AudioAnalyzer + WaveformGenerator já carregaram. Isso triplica a memória.
+        logger.info("  Spectrogram: loading audio (duplicate load)...")
         audio_data, sample_rate = librosa.load(audio_path, sr=None, mono=True)
+        log_memory("Spectrogram after load")
+        logger.info("  Spectrogram: loaded in %.2f s", time.monotonic() - step_start)
+
+        # POTENCIAL GARGALO: STFT em arrays grandes, especialmente para músicas longas
+        logger.info("  Spectrogram: computing STFT...")
         stft = librosa.stft(audio_data)
         magnitude = np.abs(stft)
         spectrogram_db = librosa.amplitude_to_db(magnitude, ref=np.max)
@@ -46,6 +63,8 @@ class SpectrogramGenerator:
         figure.tight_layout()
         figure.savefig(str(image_path), dpi=100)
         plt.close(figure)
+
+        log_memory("Spectrogram end")
 
         return SpectrogramResult(
             image_path=(Path("processed") / "spectrograms" / image_name).as_posix(),

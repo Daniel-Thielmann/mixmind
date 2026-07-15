@@ -44,6 +44,7 @@ packaging==26.2
 pathspec==1.1.1
 pillow==12.2.0
 platformdirs==4.10.0
+psutil==7.0.0
 pluggy==1.6.0
 pooch==1.9.0
 pre_commit==4.3.0
