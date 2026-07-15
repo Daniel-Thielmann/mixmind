@@ -139,7 +139,7 @@ class AudioAnalyzer:
 
             logger.info("  Detecting musical key (Camelot)...")
             key_start = time.monotonic()
-            detected_key = self._detect_key(audio_data, sample_rate)
+            detected_key = self._detect_key(audio_data, int(sample_rate))
             camelot_code = self.CAMELOT_WHEEL.get(detected_key, "Unknown")
             logger.info(
                 "  Key detection completed in %.2f s | key: %s | camelot: %s",
