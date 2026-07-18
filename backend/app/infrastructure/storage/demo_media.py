@@ -6,6 +6,7 @@ from copy import deepcopy
 from typing import TYPE_CHECKING, Any
 
 from app.core.config import Settings, settings
+from app.application.dto.demo_media import DemoMediaManifest
 from fastapi import HTTPException, status
 if TYPE_CHECKING:
     from supabase import Client
@@ -50,9 +51,8 @@ class DemoMediaService:
         storage = self._storage()
         try:
             raw = storage.download(MANIFEST_PATH)
-            manifest = json.loads(raw.decode("utf-8"))
-            assets = manifest.get("assets", {})
-            paths = [asset["objectPath"] for asset in assets.values()]
+            parsed = DemoMediaManifest.model_validate_json(raw)
+            paths = [asset.object_path for asset in parsed.assets.values()]
             signed = storage.create_signed_urls(paths, self.config.DEMO_SIGNED_URL_TTL)
         except HTTPException:
             raise
@@ -62,10 +62,19 @@ class DemoMediaService:
                 detail="Demonstration media is unavailable.",
             ) from exc
 
-        urls = {item["path"]: item.get("signedURL") or item.get("signedUrl") for item in signed}
-        for asset in assets.values():
-            asset["url"] = urls.get(asset["objectPath"])
-        manifest["expiresAt"] = int(now) + self.config.DEMO_SIGNED_URL_TTL
+        urls = {
+            item["path"]: item.get("signedURL") or item.get("signedUrl")
+            for item in signed
+        }
+        if any(not urls.get(path) for path in paths):
+            raise HTTPException(
+                status_code=status.HTTP_404_NOT_FOUND,
+                detail="One or more demonstration assets are unavailable.",
+            )
+        for asset in parsed.assets.values():
+            asset.url = urls[asset.object_path]
+        parsed.expires_at = int(now) + self.config.DEMO_SIGNED_URL_TTL
+        manifest = parsed.model_dump(mode="json", by_alias=True)
         self._cached = (now, manifest)
         return deepcopy(manifest)
 

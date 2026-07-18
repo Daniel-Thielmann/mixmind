@@ -15,19 +15,7 @@ class FakeStorage:
     def download(self, path: str) -> bytes:
         self.downloads += 1
         assert path == "demo/manifest.json"
-        return json.dumps(
-            {
-                "id": "mixmind-demo-v1",
-                "assets": {
-                    "video": {
-                        "objectPath": "demo/dawn-patrol/clip-720p.mp4",
-                        "mimeType": "video/mp4",
-                        "sizeBytes": 123,
-                        "checksum": "sha256:test",
-                    }
-                },
-            }
-        ).encode()
+        return json.dumps(valid_manifest()).encode()
 
     def create_signed_urls(self, paths: list[str], ttl: int) -> list[dict[str, str]]:
         assert ttl == 3600
@@ -42,6 +30,40 @@ class FakeClient:
     def from_(self, bucket: str) -> FakeStorage:
         assert bucket == "test-media"
         return self._storage
+
+
+def valid_manifest() -> dict:
+    processed = "2026-07-18T12:00:00Z"
+    checksum = f"sha256:{'a' * 64}"
+
+    def asset(name: str, mime: str, duration: float | None = 45) -> dict:
+        value = {
+            "title": name,
+            "source": "Owner-provided licensed media",
+            "objectPath": f"demo/test/{name}.bin",
+            "mimeType": mime,
+            "sizeBytes": 123,
+            "checksum": checksum,
+            "processedAt": processed,
+            "pipelineVersion": "1.0.0",
+            "attribution": "Used with permission",
+        }
+        if duration is not None:
+            value["duration"] = duration
+        return value
+
+    return {
+        "id": "mixmind-demo-v1",
+        "title": "MixMind real media demonstration",
+        "relationship": "trackA + trackB -> transition",
+        "assets": {
+            "trackA": asset("track-a-preview", "audio/mp4"),
+            "trackB": asset("track-b-preview", "audio/mp4"),
+            "transition": asset("transition", "audio/mp4", 120),
+            "video": asset("clip-720p", "video/mp4", 164),
+            "poster": asset("poster", "image/webp", None),
+        },
+    }
 
 
 def configured_settings():
@@ -80,3 +102,25 @@ def test_missing_configuration_is_service_unavailable() -> None:
     with pytest.raises(HTTPException) as exc:
         DemoMediaService(config).get_signed_manifest()
     assert exc.value.status_code == 503
+
+
+def test_manifest_rejects_missing_audio_asset() -> None:
+    storage = FakeStorage()
+    manifest = valid_manifest()
+    del manifest["assets"]["trackB"]
+    storage.download = lambda _path: json.dumps(manifest).encode()  # type: ignore[method-assign]
+    service = DemoMediaService(configured_settings(), FakeClient(storage))  # type: ignore[arg-type]
+    with pytest.raises(HTTPException) as exc:
+        service.get_signed_manifest()
+    assert exc.value.status_code == 404
+
+
+def test_manifest_rejects_invalid_checksum() -> None:
+    storage = FakeStorage()
+    manifest = valid_manifest()
+    manifest["assets"]["trackA"]["checksum"] = "invalid"
+    storage.download = lambda _path: json.dumps(manifest).encode()  # type: ignore[method-assign]
+    service = DemoMediaService(configured_settings(), FakeClient(storage))  # type: ignore[arg-type]
+    with pytest.raises(HTTPException) as exc:
+        service.get_signed_manifest()
+    assert exc.value.status_code == 404

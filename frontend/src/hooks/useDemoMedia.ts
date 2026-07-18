@@ -2,7 +2,7 @@
 
 import { useCallback, useEffect, useRef, useState } from "react";
 import { getApiUrl } from "@/services/api-config";
-import type { DemoMediaManifest } from "@/types/demo-media";
+import { isDemoMediaManifest, type DemoMediaManifest } from "@/types/demo-media";
 
 export function useDemoMedia() {
   const targetRef = useRef<HTMLDivElement>(null);
@@ -19,8 +19,11 @@ export function useDemoMedia() {
         cache: "no-store",
       });
       if (!response.ok) throw new Error("Demo media unavailable");
-      setManifest(await response.json());
+      const payload: unknown = await response.json();
+      if (!isDemoMediaManifest(payload)) throw new Error("Invalid demo manifest");
+      setManifest(payload);
     } catch {
+      setManifest((current) => current && current.expiresAt * 1000 > Date.now() ? current : null);
       setError("The real-media demonstration is temporarily unavailable.");
     } finally {
       setLoading(false);

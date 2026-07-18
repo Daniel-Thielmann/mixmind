@@ -35,12 +35,14 @@ export function TrackUploadCard({
   const [playing, setPlaying] = useState(false);
   const [currentTime, setCurrentTime] = useState(0);
   const [audioDuration, setAudioDuration] = useState(0);
+  const [mediaError, setMediaError] = useState(false);
   const audioRef = useRef<HTMLAudioElement | null>(null);
   const seekRef = useRef<HTMLDivElement | null>(null);
 
   const togglePlay = useCallback(() => {
+    if (mediaError) return;
     setPlaying((p) => !p);
-  }, []);
+  }, [mediaError]);
 
   const handleSeek = useCallback((e: React.MouseEvent<HTMLDivElement>) => {
     if (!audioRef.current || !seekRef.current) return;
@@ -54,9 +56,10 @@ export function TrackUploadCard({
     const el = new Audio(audioSrc);
     el.preload = "metadata";
     el.ontimeupdate = () => { setCurrentTime(el.currentTime); };
-    el.onloadedmetadata = () => { setAudioDuration(el.duration); };
+    el.onloadedmetadata = () => { setMediaError(false); setAudioDuration(el.duration); };
     el.onended = () => setPlaying(false);
     el.onpause = () => setPlaying(false);
+    el.onerror = () => { setPlaying(false); setMediaError(true); };
     audioRef.current = el;
     return () => {
       el.pause();
@@ -67,7 +70,10 @@ export function TrackUploadCard({
   useEffect(() => {
     if (!audioRef.current) return;
     if (playing) {
-      audioRef.current.play();
+      void audioRef.current.play().catch(() => {
+        setPlaying(false);
+        setMediaError(true);
+      });
     } else {
       audioRef.current.pause();
     }
@@ -100,10 +106,14 @@ export function TrackUploadCard({
             whileHover={{ scale: 1.1 }}
             whileTap={{ scale: 0.95 }}
             onClick={togglePlay}
+            disabled={mediaError || !audioSrc}
+            aria-label={mediaError ? `${label} preview unavailable` : `Play ${label} preview`}
             className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full transition-colors"
             style={{ backgroundColor: `${accentColor}20`, color: accentColor }}
           >
-            {playing ? (
+            {mediaError ? (
+              <span className="text-xs font-bold">!</span>
+            ) : playing ? (
               <svg width="12" height="12" viewBox="0 0 24 24" fill="currentColor">
                 <rect x="6" y="4" width="4" height="16" rx="1" />
                 <rect x="14" y="4" width="4" height="16" rx="1" />

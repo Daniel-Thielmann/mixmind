@@ -37,13 +37,15 @@ export function TransitionPreviewPlayer({
   const [playing, setPlaying] = useState(false);
   const [currentTime, setCurrentTime] = useState(0);
   const [audioDuration, setAudioDuration] = useState(0);
+  const [mediaError, setMediaError] = useState(false);
   const audioRef = useRef<HTMLAudioElement | null>(null);
   const seekRef = useRef<HTMLDivElement | null>(null);
   const intervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
 
   const togglePlay = useCallback(() => {
+    if (mediaError) return;
     setPlaying((p) => !p);
-  }, []);
+  }, [mediaError]);
 
   const handleSeek = useCallback((e: React.MouseEvent<HTMLDivElement>) => {
     if (!audioRef.current || !seekRef.current) return;
@@ -57,9 +59,10 @@ export function TransitionPreviewPlayer({
     const el = new Audio(audioSrc);
     el.preload = "metadata";
     el.ontimeupdate = () => { setCurrentTime(el.currentTime); };
-    el.onloadedmetadata = () => { setAudioDuration(el.duration); };
+    el.onloadedmetadata = () => { setMediaError(false); setAudioDuration(el.duration); };
     el.onended = () => { setPlaying(false); };
     el.onpause = () => { setPlaying(false); };
+    el.onerror = () => { setPlaying(false); setMediaError(true); };
     audioRef.current = el;
     return () => {
       el.pause();
@@ -70,7 +73,10 @@ export function TransitionPreviewPlayer({
   useEffect(() => {
     if (!audioRef.current || !audioSrc) return;
     if (playing) {
-      audioRef.current.play();
+      void audioRef.current.play().catch(() => {
+        setPlaying(false);
+        setMediaError(true);
+      });
     } else {
       audioRef.current.pause();
     }
@@ -175,6 +181,8 @@ export function TransitionPreviewPlayer({
               whileHover={{ scale: 1.08 }}
               whileTap={{ scale: 0.92 }}
               onClick={togglePlay}
+              disabled={mediaError || !audioSrc}
+              aria-label={mediaError ? "Transition preview unavailable" : "Play transition preview"}
               className="flex h-14 w-14 shrink-0 items-center justify-center rounded-full shadow-lg transition-all duration-300"
               style={{
                 backgroundColor: color,
@@ -182,7 +190,9 @@ export function TransitionPreviewPlayer({
                 boxShadow: `0 0 30px ${color}40`,
               }}
             >
-              {playing ? (
+              {mediaError ? (
+                <span className="text-lg font-bold">!</span>
+              ) : playing ? (
                 <svg width="18" height="18" viewBox="0 0 24 24" fill="currentColor">
                   <rect x="6" y="4" width="4" height="16" rx="1" />
                   <rect x="14" y="4" width="4" height="16" rx="1" />
