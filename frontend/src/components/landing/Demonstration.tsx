@@ -239,9 +239,9 @@ export function Demonstration() {
           whileInView={{ opacity: 1, y: 0 }}
           viewport={{ once: true }}
           transition={{ duration: 0.6 }}
-          className="mx-auto max-w-4xl"
+          className="relative left-1/2 grid w-[calc(100vw-3rem)] max-w-[1400px] -translate-x-1/2 items-start gap-8 xl:grid-cols-[56rem_minmax(0,1fr)]"
         >
-          {manifest ? <div suppressHydrationWarning>
+          {manifest ? <div className="w-full max-w-4xl" suppressHydrationWarning>
             <MixMindVideoPlayer
               src={manifest.assets.video.url}
               poster={manifest.assets.poster.url}
@@ -249,9 +249,9 @@ export function Demonstration() {
               onStateChange={handleVideoState}
               onTimeUpdate={handleVideoTime}
             />
-          </div> : <div className="aspect-video w-full rounded-xl border border-border bg-black/70" />}
+          </div> : <div className="aspect-video w-full max-w-4xl rounded-xl border border-border bg-black/70" />}
 
-          <div className="mt-8">
+          <div>
             <AIAnalysisPanel currentTime={videoTime} isPlaying={videoPlaying} />
           </div>
         </motion.div>
