@@ -296,7 +296,7 @@ export function Demonstration() {
           whileInView={{ opacity: 1, y: 0 }}
           viewport={{ once: true }}
           transition={{ duration: 0.6 }}
-          className="relative left-1/2 grid w-[calc(100vw-3rem)] max-w-[1400px] -translate-x-1/2 items-start gap-8 xl:grid-cols-[56rem_minmax(0,1fr)]"
+          className="relative left-1/2 grid w-[calc(100vw-3rem)] max-w-350 -translate-x-1/2 items-start gap-8 xl:grid-cols-[56rem_minmax(0,1fr)]"
         >
           {manifest ? (
             <div className="w-full max-w-4xl" suppressHydrationWarning>

@@ -1,7 +1,5 @@
 "use client";
 
-import { motion } from "framer-motion";
-
 const FOOTER_LINKS = {
   Product: [
     { label: "How It Works", href: "#how-it-works" },
@@ -35,7 +33,15 @@ export function Footer() {
       <div className="mx-auto max-w-7xl px-6">
         <div className="grid gap-10 sm:grid-cols-2 lg:grid-cols-5">
           <div className="lg:col-span-2">
-            <a href="#" className="mb-4 flex items-center gap-2">
+            <a
+              href="#"
+              onClick={(event) => {
+                event.preventDefault();
+                window.history.replaceState(null, "", "/");
+                window.scrollTo({ top: 0, behavior: "smooth" });
+              }}
+              className="mb-4 flex items-center gap-2"
+            >
               <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-linear-to-br from-primary to-primary-dark text-xs font-bold text-background">
                 M
               </div>
@@ -47,18 +53,6 @@ export function Footer() {
               AI-powered DJ track analysis platform. Upload, analyze, and get
               intelligent recommendations for seamless harmonic transitions.
             </p>
-            <div className="mt-6 flex items-center gap-3">
-              {["GitHub", "Twitter", "Discord"].map((platform) => (
-                <motion.a
-                  key={platform}
-                  href="#"
-                  whileHover={{ y: -2 }}
-                  className="flex h-9 w-9 items-center justify-center rounded-lg border border-border bg-card text-xs font-medium text-text-secondary transition-all duration-300 hover:border-primary/20 hover:text-primary"
-                >
-                  {platform[0]}
-                </motion.a>
-              ))}
-            </div>
           </div>
 
           {Object.entries(FOOTER_LINKS).map(([category, links]) => (
