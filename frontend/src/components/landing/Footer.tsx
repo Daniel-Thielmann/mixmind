@@ -83,7 +83,7 @@ export function Footer() {
         </div>
 
         <div className="mt-12 border-t border-border/50 pt-6">
-          <div className="flex flex-col items-center justify-between gap-4 text-xs text-text-tertiary sm:flex-row">
+          <div className="flex flex-col items-center justify-between gap-4 text-[14px] text-text-tertiary sm:flex-row">
             <p>
               &copy; {new Date().getFullYear()} MixMind AI. All rights reserved.
             </p>
