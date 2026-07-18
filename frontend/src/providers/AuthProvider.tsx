@@ -64,15 +64,27 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   }, [refreshUser]);
 
   const signInGoogle = useCallback(async () => {
-    await authClient.signIn.social({ provider: "google" });
+    const { error } = await authClient.signIn.social({
+      provider: "google",
+      callbackURL: "/dashboard",
+    });
+    if (error) throw new Error(error.message ?? "Google sign-in failed.");
   }, []);
 
   const signInGithub = useCallback(async () => {
-    await authClient.signIn.social({ provider: "github" });
+    const { error } = await authClient.signIn.social({
+      provider: "github",
+      callbackURL: "/dashboard",
+    });
+    if (error) throw new Error(error.message ?? "GitHub sign-in failed.");
   }, []);
 
   const signInSpotify = useCallback(async () => {
-    await authClient.signIn.social({ provider: "spotify" });
+    const { error } = await authClient.signIn.social({
+      provider: "spotify",
+      callbackURL: "/dashboard",
+    });
+    if (error) throw new Error(error.message ?? "Spotify sign-in failed.");
   }, []);
 
   const logout = useCallback(async () => {

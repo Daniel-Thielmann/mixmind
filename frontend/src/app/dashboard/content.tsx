@@ -30,7 +30,12 @@ export function DashboardContent() {
     setError(null);
     try {
       const response = await fetch("/api/dashboard", { cache: "no-store" });
-      if (!response.ok) throw new Error("Unable to load your dashboard.");
+      if (!response.ok) {
+        const payload = (await response.json().catch(() => null)) as
+          | { detail?: string }
+          | null;
+        throw new Error(payload?.detail ?? "Unable to load your dashboard.");
+      }
       setSummary((await response.json()) as DashboardSummary);
     } catch (cause) {
       setError(cause instanceof Error ? cause.message : "Unable to load your dashboard.");

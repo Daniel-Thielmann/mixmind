@@ -4,11 +4,13 @@ import { useEffect, useState } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { Upload } from "lucide-react";
 
+import { AuthDialog } from "@/components/auth/AuthDialog";
 import { Dashboard } from "@/components/home/dashboard";
 import { UploadCard } from "@/components/upload/upload-card";
 import { LoadingSpinner } from "@/components/ui/loading-spinner";
 import { SkeletonGrid } from "@/components/ui/Skeleton";
 import { apiService } from "@/services/api";
+import { useAuth } from "@/hooks/useAuth";
 import type { UploadAnalysisResponse, UploadStatus } from "@/types";
 
 const FRIENDLY_VALIDATION_MESSAGE =
@@ -24,12 +26,14 @@ const STEPS = [
 ] as const;
 
 export function UploadForm() {
+  const { isAuthenticated, loading: authLoading } = useAuth();
   const [trackA, setTrackA] = useState<File>();
   const [trackB, setTrackB] = useState<File>();
   const [status, setStatus] = useState<UploadStatus>("idle");
   const [error, setError] = useState<string | null>(null);
   const [result, setResult] = useState<UploadAnalysisResponse | null>(null);
   const [showAiPhase, setShowAiPhase] = useState(false);
+  const [authOpen, setAuthOpen] = useState(false);
 
   const isBusy = status === "uploading" || status === "processing";
 
@@ -45,6 +49,14 @@ export function UploadForm() {
   else if (status === "success") phase = 4;
 
   async function handleAnalyze() {
+    if (!isAuthenticated) {
+      setResult(null);
+      setStatus("error");
+      setError("You need to sign in before running an analysis.");
+      setAuthOpen(true);
+      return;
+    }
+
     if (!trackA || !trackB) {
       setResult(null);
       setStatus("error");
@@ -112,11 +124,13 @@ export function UploadForm() {
 
             <button
               onClick={handleAnalyze}
-              disabled={!trackA || !trackB || isBusy}
+              disabled={authLoading || (isAuthenticated && (!trackA || !trackB || isBusy))}
               aria-busy={isBusy}
               className="mt-6 flex w-full items-center justify-center gap-2 rounded-xl bg-success px-6 py-4 text-base font-bold text-black transition hover:brightness-110 disabled:cursor-not-allowed disabled:opacity-55"
             >
-              {isBusy ? (
+              {!isAuthenticated ? (
+                <>Sign in to analyze</>
+              ) : isBusy ? (
                 <>
                   <LoadingSpinner />
                   {STEPS[phase - 1]?.label ?? "Working..."}
@@ -179,6 +193,12 @@ export function UploadForm() {
                 {error}
               </motion.p>
             ) : null}
+
+            {!authLoading && !isAuthenticated && !error ? (
+              <p role="alert" className="mt-4 rounded-xl border border-primary/30 bg-primary/10 px-4 py-3 text-sm text-text-secondary">
+                Sign in with Google or GitHub before running an analysis.
+              </p>
+            ) : null}
           </motion.div>
         )}
       </AnimatePresence>
@@ -194,6 +214,7 @@ export function UploadForm() {
           <SkeletonGrid />
         </motion.div>
       )}
+      <AuthDialog open={authOpen} onOpenChange={setAuthOpen} />
     </section>
   );
 }

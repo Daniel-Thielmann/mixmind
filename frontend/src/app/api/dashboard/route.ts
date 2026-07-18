@@ -9,7 +9,7 @@ export async function GET() {
     return NextResponse.json({ detail: "Authentication required" }, { status: 401 });
   }
 
-  const secret = process.env.INTERNAL_AUTH_SECRET;
+  const secret = process.env.INTERNAL_AUTH_SECRET?.trim();
   if (!secret) {
     return NextResponse.json({ detail: "Dashboard integration is not configured" }, { status: 503 });
   }

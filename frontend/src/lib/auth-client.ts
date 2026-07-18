@@ -1,9 +1,7 @@
 import { createAuthClient } from "better-auth/react";
 
-export const authClient = createAuthClient({
-  baseURL: process.env.NEXT_PUBLIC_API_URL
-    ? undefined
-    : "http://localhost:3000",
-});
+// The Better Auth handler lives in this Next.js application. Using the current
+// origin avoids accidentally sending authentication requests to the Python API.
+export const authClient = createAuthClient();
 
 export type AuthClient = typeof authClient;

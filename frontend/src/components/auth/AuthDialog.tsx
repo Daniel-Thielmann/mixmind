@@ -39,6 +39,7 @@ const itemVariants = {
 export function AuthDialog({ open, onOpenChange }: AuthDialogProps) {
   const { signInGoogle, signInGithub, signInSpotify } = useAuth();
   const [loading, setLoading] = useState<"google" | "github" | "spotify" | null>(null);
+  const [error, setError] = useState<string | null>(null);
 
   const signInFns = {
     google: signInGoogle,
@@ -48,8 +49,15 @@ export function AuthDialog({ open, onOpenChange }: AuthDialogProps) {
 
   const handleSignIn = async (provider: keyof typeof signInFns) => {
     setLoading(provider);
+    setError(null);
     try {
       await signInFns[provider]();
+    } catch (signInError) {
+      setError(
+        signInError instanceof Error
+          ? signInError.message
+          : "Sign-in is unavailable. Check the provider configuration.",
+      );
     } finally {
       setLoading(null);
     }
@@ -102,6 +110,11 @@ export function AuthDialog({ open, onOpenChange }: AuthDialogProps) {
                   loading={loading === "spotify"}
                   onClick={() => handleSignIn("spotify")}
                 />
+                {error ? (
+                  <p role="alert" className="rounded-lg border border-danger/40 bg-danger/10 px-3 py-2 text-sm text-red-200">
+                    {error}
+                  </p>
+                ) : null}
               </motion.div>
 
               <motion.p
