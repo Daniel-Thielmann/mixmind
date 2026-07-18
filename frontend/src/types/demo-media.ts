@@ -1,6 +1,5 @@
 export interface DemoMediaAsset {
   title: string;
-  source: string;
   objectPath: string;
   url: string;
   mimeType: string;
@@ -11,7 +10,6 @@ export interface DemoMediaAsset {
   checksum: string;
   processedAt: string;
   pipelineVersion: string;
-  attribution: string;
 }
 
 export interface DemoMediaManifest {

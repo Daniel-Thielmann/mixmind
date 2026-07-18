@@ -72,7 +72,6 @@ def parser() -> argparse.ArgumentParser:
     command.add_argument("--preview-seconds", type=float, default=45.0)
     command.add_argument("--transition-start", type=float, default=4620.0)
     command.add_argument("--video-start", type=float, default=18600.0)
-    command.add_argument("--attribution", required=True)
     command.add_argument("--force", action="store_true")
     command.add_argument(
         "--confirm-authorized",
@@ -93,8 +92,9 @@ def encode_audio(source: Path, output: Path, start: float, length: float) -> Non
 def encode_video(source: Path, output: Path, start: float) -> None:
     run([
         "ffmpeg", "-nostdin", "-v", "error", "-ss", str(start), "-i", str(source),
-        "-t", "164", "-vf", "scale=-2:min(720\\,ih)", "-c:v", "libx264",
-        "-preset", "medium", "-crf", "24", "-c:a", "aac", "-b:a", "160k",
+        "-t", "164", "-vf", "scale=-2:min(1080\\,ih)", "-c:v", "libx264",
+        "-preset", "medium", "-crf", "26", "-maxrate", "2400k", "-bufsize", "4800k",
+        "-c:a", "aac", "-b:a", "160k",
         "-movflags", "+faststart", str(output),
     ])
 
@@ -110,9 +110,7 @@ def asset(
     path: Path,
     *,
     title: str,
-    source: str,
     object_path: str,
-    attribution: str,
     media_duration: float | None,
     original_start: float | None,
 ) -> dict[str, Any]:
@@ -121,14 +119,12 @@ def asset(
         raise RuntimeError(f"Unable to determine MIME type for {path.name}")
     result: dict[str, Any] = {
         "title": title,
-        "source": source,
         "objectPath": object_path,
         "mimeType": mime,
         "sizeBytes": path.stat().st_size,
         "checksum": sha256(path),
         "processedAt": datetime.now(UTC).isoformat(),
         "pipelineVersion": PIPELINE_VERSION,
-        "attribution": attribution,
     }
     if media_duration is not None:
         result["duration"] = media_duration
@@ -200,7 +196,7 @@ def main() -> int:
             "trackA": root / "track-a-preview.m4a",
             "trackB": root / "track-b-preview.m4a",
             "transition": root / "transition.m4a",
-            "video": root / "clip-720p.mp4",
+            "video": root / "clip-1080p.mp4",
             "poster": root / "poster.webp",
         }
         encode_audio(args.track_a, files["trackA"], 0, args.preview_seconds)
@@ -217,7 +213,7 @@ def main() -> int:
             "trackA": "demo/claptone-transition/track-a-preview.m4a",
             "trackB": "demo/claptone-transition/track-b-preview.m4a",
             "transition": "demo/claptone-transition/transition.m4a",
-            "video": "demo/dawn-patrol/clip-720p.mp4",
+            "video": "demo/dawn-patrol/clip-1080p.mp4",
             "poster": "demo/dawn-patrol/poster.webp",
         }
         titles = {
@@ -232,9 +228,7 @@ def main() -> int:
             name: asset(
                 file,
                 title=titles[name],
-                source="Owner-provided licensed local media",
                 object_path=paths[name],
-                attribution=args.attribution,
                 media_duration=durations.get(name),
                 original_start=starts[name],
             )

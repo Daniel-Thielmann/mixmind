@@ -39,14 +39,12 @@ def valid_manifest() -> dict:
     def asset(name: str, mime: str, duration: float | None = 45) -> dict:
         value = {
             "title": name,
-            "source": "Owner-provided licensed media",
             "objectPath": f"demo/test/{name}.bin",
             "mimeType": mime,
             "sizeBytes": 123,
             "checksum": checksum,
             "processedAt": processed,
             "pipelineVersion": "1.0.0",
-            "attribution": "Used with permission",
         }
         if duration is not None:
             value["duration"] = duration

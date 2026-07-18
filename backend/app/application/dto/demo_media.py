@@ -11,7 +11,6 @@ class DemoMediaAsset(BaseModel):
     model_config = ConfigDict(populate_by_name=True)
 
     title: str = Field(min_length=1)
-    source: str = Field(min_length=1)
     object_path: str = Field(alias="objectPath", min_length=1)
     mime_type: str = Field(alias="mimeType", pattern=r"^(audio|video|image)/")
     size_bytes: int = Field(alias="sizeBytes", gt=0)
@@ -21,7 +20,6 @@ class DemoMediaAsset(BaseModel):
     checksum: str = Field(pattern=r"^sha256:[0-9a-f]{64}$")
     processed_at: datetime = Field(alias="processedAt")
     pipeline_version: str = Field(alias="pipelineVersion", min_length=1)
-    attribution: str = Field(min_length=1)
     url: HttpUrl | None = None
 
     @model_validator(mode="after")
