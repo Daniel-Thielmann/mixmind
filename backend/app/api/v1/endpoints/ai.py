@@ -2,7 +2,7 @@
 
 from __future__ import annotations
 
-from app.ai.agent import dj_agent
+from app.infrastructure.llm.agent import dj_agent
 from fastapi import APIRouter
 
 router = APIRouter()
@@ -12,7 +12,7 @@ router = APIRouter()
     "/health",
     summary="AI infrastructure health check",
 )
-async def ai_health() -> dict:
+async def ai_health() -> dict[str, object]:
     llm_manager = dj_agent._llm_manager
     health_data = llm_manager.health()
     stats_data = llm_manager.stats()

@@ -1,6 +1,6 @@
 import numpy as np
 import soundfile as sf
-from app.audio.services.spectrogram import SpectrogramGenerator
+from app.infrastructure.audio.spectrogram import SpectrogramGenerator
 
 
 def test_spectrogram_generator_creates_png_and_directory(tmp_path, monkeypatch) -> None:
@@ -17,7 +17,7 @@ def test_spectrogram_generator_creates_png_and_directory(tmp_path, monkeypatch) 
     stereo = np.column_stack([waveform, waveform])
     sf.write(audio_path, stereo, sample_rate)
 
-    from app.audio.services import base_image_generator
+    from app.infrastructure.audio import base_image_generator
 
     processed_root = tmp_path / "processed"
     monkeypatch.setattr(

@@ -14,8 +14,8 @@ if str(BACKEND_ROOT) not in sys.path:
 
 @pytest.fixture(autouse=True)
 def _reset_ai_globals() -> None:
-    from app.ai.cache import recommendation_cache
-    from app.ai.metrics import llm_metrics
+    from app.infrastructure.llm.cache import recommendation_cache
+    from app.infrastructure.llm.metrics import llm_metrics
 
     recommendation_cache.clear()
     llm_metrics.reset()

@@ -3,7 +3,17 @@ from io import BytesIO
 from pathlib import Path
 from types import SimpleNamespace
 
-from app.ai.schemas import (
+from app.application.dto.api import UploadAnalysisResponse
+from app.application.use_cases.analysis.analyze_track import AnalysisService
+from app.domain.entities.track import AudioAnalysis
+from app.domain.value_objects.compatibility import CompatibilityResult
+from app.domain.value_objects.visualization import (
+    SpectrogramResult,
+    Spectrograms,
+    WaveformResult,
+    Waveforms,
+)
+from app.infrastructure.llm.schemas import (
     AIRecommendationResponse,
     CompatibilityAnalysis,
     DJExecution,
@@ -12,12 +22,6 @@ from app.ai.schemas import (
     TempoAnalysis,
 )
 from app.main import app
-from app.schemas.api import UploadAnalysisResponse
-from app.schemas.audio import AudioAnalysis
-from app.schemas.recommendation import CompatibilityResult
-from app.schemas.spectrogram import SpectrogramResult, Spectrograms
-from app.schemas.waveform import WaveformResult, Waveforms
-from app.services.analysis_service import AnalysisService
 from fastapi import UploadFile
 from fastapi.testclient import TestClient
 
@@ -58,6 +62,7 @@ class FakeCompat:
             energy_difference=0.0,
             tempo_match="Excellent",
             energy_match="Excellent",
+            harmonic_match="Excellent",
             overall_rating="Excellent",
         )
 
@@ -128,7 +133,7 @@ class TestAnalysisSession:
         assert len(ids) == 10  # all unique
 
     def test_analysis_creates_session_folder(self, tmp_path, monkeypatch) -> None:
-        from app.services import analysis_service as module
+        from app.application.use_cases.analysis import analyze_track as module
 
         processed_root = tmp_path / "processed"
         monkeypatch.setattr(
@@ -158,7 +163,7 @@ class TestAnalysisSession:
         assert folder.is_dir()
 
     def test_analysis_json_is_generated(self, tmp_path, monkeypatch) -> None:
-        from app.services import analysis_service as module
+        from app.application.use_cases.analysis import analyze_track as module
 
         processed_root = tmp_path / "processed"
         monkeypatch.setattr(
@@ -195,7 +200,7 @@ class TestAnalysisSession:
         assert "spectrograms" in data
 
     def test_analysis_json_contains_all_fields(self, tmp_path, monkeypatch) -> None:
-        from app.services import analysis_service as module
+        from app.application.use_cases.analysis import analyze_track as module
 
         processed_root = tmp_path / "processed"
         monkeypatch.setattr(
@@ -283,6 +288,7 @@ class TestPublicUrls:
                 energy_difference=0.0,
                 tempo_match="Excellent",
                 energy_match="Excellent",
+                harmonic_match="Excellent",
                 overall_rating="Excellent",
             ),
             ai_recommendation=AIRecommendationResponse(
@@ -381,6 +387,7 @@ class TestPublicUrls:
                 energy_difference=0.0,
                 tempo_match="Excellent",
                 energy_match="Excellent",
+                harmonic_match="Excellent",
                 overall_rating="Excellent",
             ),
             ai_recommendation=AIRecommendationResponse(

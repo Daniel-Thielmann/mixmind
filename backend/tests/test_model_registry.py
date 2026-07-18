@@ -2,7 +2,7 @@
 
 import time
 
-from app.ai.model_registry import ModelRegistry
+from app.infrastructure.llm.model_registry import ModelRegistry
 
 
 class TestModelRegistry:

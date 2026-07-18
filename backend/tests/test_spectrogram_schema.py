@@ -1,4 +1,4 @@
-from app.schemas.spectrogram import SpectrogramResult, Spectrograms
+from app.domain.value_objects.visualization import SpectrogramResult, Spectrograms
 
 
 def test_spectrogram_schema_serialization() -> None:

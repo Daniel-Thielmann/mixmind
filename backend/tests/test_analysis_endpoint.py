@@ -1,7 +1,17 @@
 import asyncio
 from io import BytesIO
 
-from app.ai.schemas import (
+from app.api.v1.endpoints import analysis as analysis_module
+from app.application.dto.api import UploadAnalysisResponse
+from app.domain.entities.track import AudioAnalysis
+from app.domain.value_objects.compatibility import CompatibilityResult
+from app.domain.value_objects.visualization import (
+    SpectrogramResult,
+    Spectrograms,
+    WaveformResult,
+    Waveforms,
+)
+from app.infrastructure.llm.schemas import (
     AIRecommendationResponse,
     CompatibilityAnalysis,
     DJExecution,
@@ -9,13 +19,7 @@ from app.ai.schemas import (
     MixStrategy,
     TempoAnalysis,
 )
-from app.api.v1.endpoints import analysis as analysis_module
 from app.main import app
-from app.schemas.api import UploadAnalysisResponse
-from app.schemas.audio import AudioAnalysis
-from app.schemas.recommendation import CompatibilityResult
-from app.schemas.spectrogram import SpectrogramResult, Spectrograms
-from app.schemas.waveform import WaveformResult, Waveforms
 from fastapi import UploadFile
 from fastapi.testclient import TestClient
 
@@ -57,6 +61,7 @@ def test_analyze_tracks_returns_analysis_response(monkeypatch) -> None:
             energy_difference=0.0084,
             tempo_match="Excellent",
             energy_match="Excellent",
+            harmonic_match="Excellent",
             overall_rating="Excellent",
         ),
         ai_recommendation=AIRecommendationResponse(
@@ -162,6 +167,7 @@ def test_analyze_tracks_http_response_includes_spectrograms(monkeypatch) -> None
             energy_difference=0.0084,
             tempo_match="Excellent",
             energy_match="Excellent",
+            harmonic_match="Excellent",
             overall_rating="Excellent",
         ),
         ai_recommendation=AIRecommendationResponse(

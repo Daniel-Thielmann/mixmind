@@ -1,12 +1,12 @@
 from io import BytesIO
 from types import SimpleNamespace
 
-from app.services.infrastructure.storage_service import StorageService
+from app.infrastructure.storage.storage_service import StorageService
 from fastapi import UploadFile
 
 
 def test_save_audio_stores_bytes_in_upload_path(tmp_path, monkeypatch) -> None:
-    from app.services.infrastructure import storage_service as storage_module
+    from app.infrastructure.storage import storage_service as storage_module
 
     monkeypatch.setattr(
         storage_module,

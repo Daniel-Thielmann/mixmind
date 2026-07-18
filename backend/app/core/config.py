@@ -1,60 +1,55 @@
+from __future__ import annotations
+
 from pathlib import Path
+from typing import ClassVar
 
 from pydantic import Field
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
-BASE_DIR = Path(__file__).resolve().parent.parent.parent
+BASE_DIR: Path = Path(__file__).resolve().parent.parent.parent
 
 
 class Settings(BaseSettings):
-    """
-    Centraliza todas as configurações da aplicação.
-    """
-
-    model_config = SettingsConfigDict(
+    model_config: ClassVar[SettingsConfigDict] = SettingsConfigDict(
         env_file=".env",
+        env_file_encoding="utf-8",
         extra="ignore",
+        case_sensitive=True,
     )
 
     APP_NAME: str = "MixMind AI"
     APP_VERSION: str = "1.0.0"
+    APP_DESCRIPTION: str = (
+        "AI-powered assistant for DJs capable of analyzing electronic music tracks "
+        "using Digital Signal Processing (DSP) and Music Information Retrieval (MIR)."
+    )
+    ENVIRONMENT: str = Field(
+        default="development", pattern=r"^(development|staging|production)$"
+    )
+    DEBUG: bool = Field(default=False)
+    LOG_LEVEL: str = Field(
+        default="INFO", pattern=r"^(DEBUG|INFO|WARNING|ERROR|CRITICAL)$"
+    )
+    LOG_JSON_FORMAT: bool = Field(default=False)
 
-    # ==========================================================
-    # Paths
-    # ==========================================================
+    API_V1_PREFIX: str = "/api/v1"
+
+    CORS_ORIGINS: list[str] = Field(default_factory=list)
+    CORS_ALLOW_CREDENTIALS: bool = True
+    CORS_ALLOW_METHODS: list[str] = Field(default_factory=lambda: ["*"])
+    CORS_ALLOW_HEADERS: list[str] = Field(default_factory=lambda: ["*"])
 
     UPLOAD_DIR: str = "uploads"
     PROCESSED_DIR: str = "processed"
     TEMP_DIR: str = "temp"
 
-    MAX_UPLOAD_SIZE: int = Field(
-        default=100,
-        description="Maximum upload size in MB",
-    )
+    MAX_UPLOAD_SIZE: int = Field(default=100, ge=1, le=500)
 
-    BASE_URL: str = Field(
-        default="http://localhost:8000",
-        description="Public base URL used to generate file URLs.",
-    )
+    BASE_URL: str = Field(default="http://localhost:8000")
 
-    # ==========================================================
-    # LLM
-    # ==========================================================
-
-    OPENROUTER_API_KEY: str = Field(
-        default="",
-        description="OpenRouter API key.",
-    )
-
-    OPENROUTER_BASE_URL: str = Field(
-        default="https://openrouter.ai/api/v1",
-        description="OpenRouter API endpoint.",
-    )
-
-    OPENROUTER_MODEL: str = Field(
-        default="openai/gpt-oss-20b:free",
-        description="Primary model.",
-    )
+    OPENROUTER_API_KEY: str = Field(default="")
+    OPENROUTER_BASE_URL: str = Field(default="https://openrouter.ai/api/v1")
+    OPENROUTER_MODEL: str = Field(default="openai/gpt-oss-20b:free")
 
     OPENROUTER_MODELS: list[str] = Field(
         default_factory=lambda: [
@@ -74,47 +69,15 @@ class Settings(BaseSettings):
             "mistralai/mistral-medium-3.5-128b",
             "mistralai/mistral-small-4-119b-2603",
             "nvidia/nemotron-mini-4b-instruct",
-        ],
-        description="Fallback models in priority order.",
+        ]
     )
 
-    LLM_TIMEOUT: int = Field(
-        default=30,
-        ge=5,
-        le=120,
-    )
-
-    LLM_MAX_RETRIES: int = Field(
-        default=2,
-        ge=0,
-        le=5,
-    )
-
-    LLM_RETRY_BACKOFF_BASE: float = Field(
-        default=1.0,
-        ge=0.5,
-        le=10.0,
-    )
-
-    LLM_MAX_TOKENS: int = Field(
-        default=1500,
-        ge=256,
-        le=4096,
-    )
-
-    LLM_TEMPERATURE: float = Field(
-        default=0.0,
-        ge=0.0,
-        le=2.0,
-    )
-
-    LLM_LOG_RAW_RESPONSES: bool = Field(
-        default=False,
-    )
-
-    # ==========================================================
-    # Computed Paths
-    # ==========================================================
+    LLM_TIMEOUT: int = Field(default=30, ge=5, le=120)
+    LLM_MAX_RETRIES: int = Field(default=2, ge=0, le=5)
+    LLM_RETRY_BACKOFF_BASE: float = Field(default=1.0, ge=0.5, le=10.0)
+    LLM_MAX_TOKENS: int = Field(default=1500, ge=256, le=4096)
+    LLM_TEMPERATURE: float = Field(default=0.0, ge=0.0, le=2.0)
+    LLM_LOG_RAW_RESPONSES: bool = Field(default=False)
 
     @property
     def upload_path(self) -> Path:
@@ -131,6 +94,14 @@ class Settings(BaseSettings):
     @property
     def analysis_path(self) -> Path:
         return self.processed_path / "analysis"
+
+    @property
+    def is_development(self) -> bool:
+        return self.ENVIRONMENT == "development"
+
+    @property
+    def is_production(self) -> bool:
+        return self.ENVIRONMENT == "production"
 
 
 settings = Settings()

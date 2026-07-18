@@ -161,8 +161,9 @@ Audio Analyzer        AI Recommendation
 
 - Python 3.13
 - FastAPI
-- Pydantic
+- Pydantic / Pydantic Settings v2
 - Uvicorn
+- UV (Python package manager)
 
 ## AI
 
@@ -181,9 +182,10 @@ Audio Analyzer        AI Recommendation
 
 ## Quality
 
-- Pytest
-- Ruff
-- Black
+- Pytest / Pytest-cov
+- Ruff (linter + formatter)
+- MyPy (strict mode)
+- Pre-commit hooks
 - GitHub Actions
 
 ---
@@ -195,20 +197,20 @@ MixMind-AI/
 
 ├── backend/
 │   ├── app/
-│   │   ├── ai/
-│   │   ├── api/
-│   │   ├── audio/
-│   │   ├── core/
-│   │   ├── schemas/
-│   │   ├── services/
-│   │   └── utils/
+│   │   ├── api/               # Interface layer (FastAPI routers)
+│   │   ├── application/        # Use cases / application services
+│   │   ├── core/               # Config, logging, exceptions, security
+│   │   ├── domain/             # Business entities, domain schemas
+│   │   ├── infrastructure/     # External services (AI, audio, storage)
+│   │   ├── shared/             # Shared utilities & helpers
+│   │   └── main.py             # FastAPI application entry point
 │   │
 │   ├── tests/
 │   ├── uploads/
 │   ├── processed/
 │   ├── temp/
 │   ├── Dockerfile
-│   └── requirements.txt
+│   └── pyproject.toml
 │
 ├── frontend/
 │   ├── src/
@@ -216,7 +218,17 @@ MixMind-AI/
 │   ├── Dockerfile
 │   └── package.json
 │
+├── datasets/
+├── ml/
+├── llm/
+├── pipelines/
+├── notebooks/
+├── infra/
+├── monitoring/
+├── docs/
+├── scripts/
 ├── docker-compose.yml
+├── pyproject.toml
 ├── README.md
 └── LICENSE
 ```
@@ -286,13 +298,20 @@ Enter the project
 cd MixMind-AI/backend
 ```
 
-Create virtual environment
+Install UV (package manager)
 
 ```bash
-python -m venv .venv
+pip install uv
 ```
 
-Activate
+Create virtual environment and install dependencies
+
+```bash
+cd backend
+uv sync
+```
+
+Activate virtual environment
 
 Windows
 
@@ -306,16 +325,16 @@ Linux / macOS
 source .venv/bin/activate
 ```
 
-Install dependencies
+Run the development server
 
 ```bash
-pip install -r requirements.txt
+uv run uvicorn app.main:app --reload
 ```
 
-Run the server
+Or use the pyproject script
 
 ```bash
-uvicorn app.main:app --reload
+uv run mixmind-run
 ```
 
 Swagger
@@ -332,6 +351,12 @@ Build and start all services
 
 ```bash
 docker compose up --build
+```
+
+Run specific service
+
+```bash
+docker compose up backend --build
 ```
 
 Backend
@@ -357,35 +382,41 @@ docker compose down
 # Running Tests
 
 ```bash
-pytest
+uv run pytest
 ```
 
 Coverage
 
 ```bash
-pytest --cov
+uv run pytest --cov
 ```
 
 ---
 
 # Code Quality
 
-Run Ruff
+Run Ruff (linter)
 
 ```bash
-ruff check .
+uv run ruff check .
 ```
 
-Format
+Run Ruff (formatter)
 
 ```bash
-black .
+uv run ruff format .
 ```
 
-Run pre-commit
+Run MyPy (type checker)
 
 ```bash
-pre-commit run --all-files
+uv run mypy .
+```
+
+Run pre-commit on all files
+
+```bash
+uv run pre-commit run --all-files
 ```
 
 ---
@@ -416,6 +447,50 @@ pre-commit run --all-files
 - [ ] Spotify Integration
 - [ ] Rekordbox Export
 - [ ] Real-time Audio Analysis
+
+---
+
+# New Roadmap for v2
+
+🏗️ Trilha 1 — Software Engineering
+Arquitetura
+FastAPI
+Docker
+Testes
+CI/CD
+Observabilidade
+
+📊 Trilha 2 — Data Engineering
+Polars
+Pandas
+DuckDB
+Parquet
+Bronze/Silver/Gold
+Airflow
+Data Quality
+
+🤖 Trilha 3 — Machine Learning
+Feature Engineering
+Modelagem
+Avaliação
+Experiment Tracking
+MLflow
+Model Serving
+
+🧠 Trilha 4 — LLM Engineering
+Embeddings
+ChromaDB
+RAG
+LangChain
+Agentes
+Avaliação de prompts
+
+☁️ Trilha 5 — Platform Engineering
+Docker
+Infraestrutura
+Monitoramento
+Deploy
+Escalabilidade
 
 # Academic Context
 

@@ -1,5 +1,5 @@
-from app.schemas.audio import AudioAnalysis
-from app.services.compatibility_service import CompatibilityService
+from app.application.use_cases.compatibility.compare_tracks import CompatibilityService
+from app.domain.entities.track import AudioAnalysis
 
 
 def test_compare_returns_high_compatibility_for_similar_tracks() -> None:

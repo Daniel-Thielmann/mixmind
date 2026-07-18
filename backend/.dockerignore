@@ -6,11 +6,15 @@ __pycache__/
 .pytest_cache/
 .coverage
 htmlcov/
+reports/
+.mypy_cache/
+.ruff_cache/
 
 .venv/
 venv/
 
 .env
+.env.*
 
 .git
 .gitignore
@@ -22,6 +26,10 @@ temp/
 tests/
 
 *.wav
+*.mp3
+*.flac
 
 .idea/
 .vscode/
+*.md
+CHANGELOG.md

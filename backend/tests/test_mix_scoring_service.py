@@ -2,7 +2,7 @@
 M6 (dj_score).
 """
 
-from app.services.mix_scoring_service import MixScoringService
+from app.application.use_cases.compatibility.score_mix import MixScoringService
 
 service = MixScoringService()
 

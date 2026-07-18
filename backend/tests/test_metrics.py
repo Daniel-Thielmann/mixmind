@@ -1,6 +1,6 @@
 """Tests for LLMMetricsCollector."""
 
-from app.ai.metrics import LLMMetricsCollector
+from app.infrastructure.llm.metrics import LLMMetricsCollector
 
 
 class TestLLMMetricsCollector:

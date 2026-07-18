@@ -3,12 +3,16 @@
 import time
 
 import pytest
-from app.ai.agent import DJAgent
-from app.ai.cache import RecommendationCache
-from app.ai.exceptions import LLMHTTPError, LLMRateLimitError, LLMTimeoutError
-from app.ai.llm_manager import LLMManager
-from app.ai.metrics import LLMMetricsCollector
-from app.ai.model_registry import ModelRegistry
+from app.infrastructure.llm.agent import DJAgent
+from app.infrastructure.llm.cache import RecommendationCache
+from app.infrastructure.llm.exceptions import (
+    LLMHTTPError,
+    LLMRateLimitError,
+    LLMTimeoutError,
+)
+from app.infrastructure.llm.llm_manager import LLMManager
+from app.infrastructure.llm.metrics import LLMMetricsCollector
+from app.infrastructure.llm.model_registry import ModelRegistry
 
 VALID_LLM_JSON = (
     "{"
@@ -251,7 +255,7 @@ class TestInvalidModel:
 class TestRetryStrategy:
     def test_http_429_switches_immediately(self) -> None:
         """HTTP 429 should NOT retry — switch to next model immediately."""
-        from app.ai.exceptions import LLMAllModelsFailed
+        from app.infrastructure.llm.exceptions import LLMAllModelsFailed
 
         metrics = LLMMetricsCollector()
         client = RaisingClient(LLMRateLimitError(429, "rate limit"), fail_count=1)
@@ -323,7 +327,7 @@ class TestRetryStrategy:
         manager._injected_client = JsonClient()
 
         messages = [{"role": "user", "content": "test"}]
-        from app.ai.exceptions import LLMAllModelsFailed
+        from app.infrastructure.llm.exceptions import LLMAllModelsFailed
 
         try:
             manager.generate(messages)
@@ -531,7 +535,7 @@ class TestCacheIntegration:
 class TestValidatorExceptions:
     def test_validator_unexpected_exception_does_not_retry(self) -> None:
         """Validator raising Exception should NOT retry — switch to next model."""
-        from app.ai.exceptions import LLMAllModelsFailed
+        from app.infrastructure.llm.exceptions import LLMAllModelsFailed
 
         call_count = 0
 
@@ -557,7 +561,7 @@ class TestValidatorExceptions:
 class TestValidatorRejection:
     def test_validator_rejects_raises_llm_all_models_failed(self) -> None:
         """Validator returning False should raise LLMAllModelsFailed."""
-        from app.ai.exceptions import LLMAllModelsFailed
+        from app.infrastructure.llm.exceptions import LLMAllModelsFailed
 
         manager = LLMManager(
             models=["m"],

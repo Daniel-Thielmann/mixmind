@@ -1,7 +1,7 @@
 """Direct unit tests for LLMManager — repair & parse logic."""
 
-from app.ai.exceptions import LLMAllModelsFailed
-from app.ai.llm_manager import LLMManager
+from app.infrastructure.llm.exceptions import LLMAllModelsFailed
+from app.infrastructure.llm.llm_manager import LLMManager
 
 
 def _manager() -> LLMManager:
@@ -125,7 +125,7 @@ class TestRepairAndParse:
 class TestNormalize:
     def test_fills_missing_text_fields(self) -> None:
         m = _manager()
-        from app.ai.llm_manager import LLMMetrics
+        from app.infrastructure.llm.llm_manager import LLMMetrics
 
         metrics = LLMMetrics()
         parsed = {"summary": "Test"}
@@ -138,7 +138,7 @@ class TestNormalize:
 
     def test_does_not_overwrite_existing_values(self) -> None:
         m = _manager()
-        from app.ai.llm_manager import LLMMetrics
+        from app.infrastructure.llm.llm_manager import LLMMetrics
 
         metrics = LLMMetrics()
         parsed = {
@@ -156,7 +156,7 @@ class TestNormalize:
 
     def test_ignores_unknown_fields(self) -> None:
         m = _manager()
-        from app.ai.llm_manager import LLMMetrics
+        from app.infrastructure.llm.llm_manager import LLMMetrics
 
         metrics = LLMMetrics()
         parsed = {
@@ -171,7 +171,7 @@ class TestNormalize:
 
     def test_records_filled_fields_in_metrics(self) -> None:
         m = _manager()
-        from app.ai.llm_manager import LLMMetrics
+        from app.infrastructure.llm.llm_manager import LLMMetrics
 
         metrics = LLMMetrics()
         parsed = {"summary": "Test"}
@@ -186,57 +186,57 @@ class TestNormalize:
 
 class TestIsRetryable:
     def test_429_is_not_retryable(self) -> None:
-        from app.ai.exceptions import LLMHTTPError
+        from app.infrastructure.llm.exceptions import LLMHTTPError
 
         err = LLMHTTPError(429, "Rate limited")
         assert err.is_retryable() is False
         assert err.status_code == 429
 
     def test_0_connection_error_is_retryable(self) -> None:
-        from app.ai.exceptions import LLMHTTPError
+        from app.infrastructure.llm.exceptions import LLMHTTPError
 
         err = LLMHTTPError(0, "Connection error")
         assert err.is_retryable() is True
         assert err.status_code == 0
 
     def test_500_is_retryable(self) -> None:
-        from app.ai.exceptions import LLMHTTPError
+        from app.infrastructure.llm.exceptions import LLMHTTPError
 
         err = LLMHTTPError(500, "Internal error")
         assert err.is_retryable() is True
 
     def test_502_is_retryable(self) -> None:
-        from app.ai.exceptions import LLMHTTPError
+        from app.infrastructure.llm.exceptions import LLMHTTPError
 
         assert LLMHTTPError(502, "").is_retryable() is True
 
     def test_503_is_retryable(self) -> None:
-        from app.ai.exceptions import LLMHTTPError
+        from app.infrastructure.llm.exceptions import LLMHTTPError
 
         assert LLMHTTPError(503, "").is_retryable() is True
 
     def test_504_is_retryable(self) -> None:
-        from app.ai.exceptions import LLMHTTPError
+        from app.infrastructure.llm.exceptions import LLMHTTPError
 
         assert LLMHTTPError(504, "").is_retryable() is True
 
     def test_400_is_not_retryable(self) -> None:
-        from app.ai.exceptions import LLMHTTPError
+        from app.infrastructure.llm.exceptions import LLMHTTPError
 
         assert LLMHTTPError(400, "").is_retryable() is False
 
     def test_403_is_not_retryable(self) -> None:
-        from app.ai.exceptions import LLMHTTPError
+        from app.infrastructure.llm.exceptions import LLMHTTPError
 
         assert LLMHTTPError(403, "").is_retryable() is False
 
     def test_0_is_not_retryable(self) -> None:
-        from app.ai.exceptions import LLMHTTPError
+        from app.infrastructure.llm.exceptions import LLMHTTPError
 
         assert LLMHTTPError(0, "").is_retryable() is True
 
     def test_llm_rate_limit_error_is_not_retryable(self) -> None:
-        from app.ai.exceptions import LLMRateLimitError
+        from app.infrastructure.llm.exceptions import LLMRateLimitError
 
         err = LLMRateLimitError(429, "Rate limited")
         assert err.is_retryable() is False

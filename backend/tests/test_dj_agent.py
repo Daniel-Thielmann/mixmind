@@ -1,10 +1,20 @@
 """Tests for DJAgent — using injected fake clients."""
 
-from app.ai.agent import DJAgent
-from app.ai.exceptions import LLMAllModelsFailed, LLMHTTPError
-from app.ai.llm_manager import LLMManager
-from app.ai.prompts import build_llm_payload
-from app.ai.schemas import (
+from app.application.dto.api import UploadAnalysisResponse
+from app.core.config import settings
+from app.domain.entities.track import AudioAnalysis
+from app.domain.value_objects.compatibility import CompatibilityResult
+from app.domain.value_objects.visualization import (
+    SpectrogramResult,
+    Spectrograms,
+    WaveformResult,
+    Waveforms,
+)
+from app.infrastructure.llm.agent import DJAgent
+from app.infrastructure.llm.exceptions import LLMAllModelsFailed, LLMHTTPError
+from app.infrastructure.llm.llm_manager import LLMManager
+from app.infrastructure.llm.prompts import build_llm_payload
+from app.infrastructure.llm.schemas import (
     AIRecommendationResponse,
     CompatibilityAnalysis,
     DJExecution,
@@ -12,12 +22,6 @@ from app.ai.schemas import (
     MixStrategy,
     TempoAnalysis,
 )
-from app.core.config import settings
-from app.schemas.api import UploadAnalysisResponse
-from app.schemas.audio import AudioAnalysis
-from app.schemas.recommendation import CompatibilityResult
-from app.schemas.spectrogram import SpectrogramResult, Spectrograms
-from app.schemas.waveform import WaveformResult, Waveforms
 
 # ---------------------------------------------------------------------------
 # Fake clients
@@ -99,6 +103,7 @@ def _build_response() -> UploadAnalysisResponse:
             energy_difference=0.01,
             tempo_match="Excellent",
             energy_match="Excellent",
+            harmonic_match="Excellent",
             overall_rating="Excellent",
         ),
         ai_recommendation=AIRecommendationResponse(
@@ -227,7 +232,7 @@ def _expected_valid() -> AIRecommendationResponse:
 
 
 def test_build_llm_payload_includes_mix_scoring() -> None:
-    from app.services.mix_scoring_service import MixScore
+    from app.application.use_cases.compatibility.score_mix import MixScore
 
     mix_score = MixScore(
         dj_score=85, mix_difficulty="Very Easy", recommended_transition_length="64 bars"
@@ -576,7 +581,7 @@ class TestNewRetryBehavior:
 
     def test_timeout_is_retried(self) -> None:
         """LLMTimeoutError should be retried."""
-        from app.ai.exceptions import LLMTimeoutError
+        from app.infrastructure.llm.exceptions import LLMTimeoutError
 
         results = [LLMTimeoutError("t1"), VALID_LLM_JSON]
 

@@ -1,7 +1,7 @@
 import numpy as np
 import soundfile as sf
-from app.audio.services.analyzer import AudioAnalyzer
-from app.audio.services.waveform import WaveformGenerator
+from app.infrastructure.audio.analyzer import AudioAnalyzer
+from app.infrastructure.audio.waveform import WaveformGenerator
 
 
 def test_waveform_generator_creates_png_and_directory(tmp_path, monkeypatch) -> None:
@@ -18,7 +18,7 @@ def test_waveform_generator_creates_png_and_directory(tmp_path, monkeypatch) -> 
     stereo = np.column_stack([waveform, waveform])
     sf.write(audio_path, stereo, sample_rate)
 
-    from app.audio.services import base_image_generator
+    from app.infrastructure.audio import base_image_generator
 
     processed_root = tmp_path / "processed"
     monkeypatch.setattr(

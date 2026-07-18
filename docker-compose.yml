@@ -1,40 +1,55 @@
+# ============================================================
+# MixMind AI - Docker Compose
+# ============================================================
+
+networks:
+  mixmind-network:
+    driver: bridge
+
+volumes:
+  uploads-data:
+  processed-data:
+  temp-data:
+
 services:
   backend:
-
     container_name: mixmind-backend
-
     build:
       context: ./backend
-
     ports:
       - "8000:8000"
-
     env_file:
       - ./backend/.env
-
+    environment:
+      - ENVIRONMENT=${ENVIRONMENT:-development}
     volumes:
-      - ./backend/uploads:/app/uploads
-      - ./backend/processed:/app/processed
-      - ./backend/temp:/app/temp
-
+      - uploads-data:/app/uploads
+      - processed-data:/app/processed
+      - temp-data:/app/temp
+    networks:
+      - mixmind-network
     restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://localhost:8000/api/v1/health')"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 40s
 
   frontend:
     container_name: mixmind-frontend
-
     build:
       context: ./frontend
       args:
         NEXT_PUBLIC_API_URL: http://localhost:8000
-
     environment:
       NEXT_PUBLIC_API_URL: http://localhost:8000
       NODE_ENV: production
-
     ports:
       - "3000:3000"
-
     depends_on:
-      - backend
-
+      backend:
+        condition: service_healthy
+    networks:
+      - mixmind-network
     restart: unless-stopped

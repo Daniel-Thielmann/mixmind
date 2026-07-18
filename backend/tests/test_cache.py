@@ -2,7 +2,7 @@
 
 import time
 
-from app.ai.cache import RecommendationCache
+from app.infrastructure.llm.cache import RecommendationCache
 
 
 class TestRecommendationCache:

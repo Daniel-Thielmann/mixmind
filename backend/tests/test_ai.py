@@ -1,5 +1,14 @@
-from app.ai.agent import DJAgent
-from app.ai.schemas import (
+from app.application.dto.api import UploadAnalysisResponse
+from app.domain.entities.track import AudioAnalysis
+from app.domain.value_objects.compatibility import CompatibilityResult
+from app.domain.value_objects.visualization import (
+    SpectrogramResult,
+    Spectrograms,
+    WaveformResult,
+    Waveforms,
+)
+from app.infrastructure.llm.agent import DJAgent
+from app.infrastructure.llm.schemas import (
     AIRecommendationResponse,
     CompatibilityAnalysis,
     DJExecution,
@@ -7,11 +16,6 @@ from app.ai.schemas import (
     MixStrategy,
     TempoAnalysis,
 )
-from app.schemas.api import UploadAnalysisResponse
-from app.schemas.audio import AudioAnalysis
-from app.schemas.recommendation import CompatibilityResult
-from app.schemas.spectrogram import SpectrogramResult, Spectrograms
-from app.schemas.waveform import WaveformResult, Waveforms
 
 agent = DJAgent()
 
@@ -39,6 +43,7 @@ response = UploadAnalysisResponse(
         energy_difference=0.0236,
         tempo_match="Good",
         energy_match="Good",
+        harmonic_match="Good",
         overall_rating="Good",
     ),
     ai_recommendation=AIRecommendationResponse(

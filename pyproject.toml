@@ -1,20 +1,73 @@
-[tool.black]
-line-length = 88
-target-version = ["py312"]
+[project]
+name = "mixmind"
+version = "1.0.0"
+description = "AI-powered DJ Mixing Assistant"
+readme = "README.md"
+requires-python = ">=3.13"
+license = { text = "MIT" }
+authors = [
+    { name = "Daniel Thielmann" },
+]
 
-[tool.isort]
-profile = "black"
-line_length = 88
-multi_line_output = 3
-include_trailing_comma = true
-use_parentheses = true
-force_grid_wrap = 0
-known_first_party = ["app"]
-skip_gitignore = true
+dependencies = [
+    "fastapi>=0.138.0",
+    "uvicorn[standard]>=0.49.0",
+    "pydantic>=2.13.0",
+    "pydantic-settings>=2.14.0",
+    "python-multipart>=0.0.32",
+    "httpx>=0.28.0",
+    "librosa>=0.11.0",
+    "numpy>=2.4.0",
+    "scipy>=1.18.0",
+    "matplotlib>=3.11.0",
+    "scikit-learn>=1.9.0",
+    "soundfile>=0.14.0",
+    "soxr>=1.1.0",
+    "pillow>=12.2.0",
+    "psutil>=7.0.0",
+    "json_repair>=0.61.0",
+]
+
+[project.optional-dependencies]
+dev = [
+    "ruff>=0.12.0",
+    "mypy>=1.15.0",
+    "pytest>=8.4.0",
+    "pytest-cov>=6.0.0",
+    "pre-commit>=4.3.0",
+    "httpx>=0.28.0",
+]
+
+llm = [
+    "httpx>=0.28.0",
+    "json_repair>=0.61.0",
+]
+
+audio = [
+    "librosa>=0.11.0",
+    "numpy>=2.4.0",
+    "scipy>=1.18.0",
+    "matplotlib>=3.11.0",
+    "soundfile>=0.14.0",
+    "soxr>=1.1.0",
+    "pillow>=12.2.0",
+]
+
+test = [
+    "pytest>=8.4.0",
+    "pytest-cov>=6.0.0",
+    "httpx>=0.28.0",
+]
+
+[project.urls]
+Homepage = "https://github.com/anomalyco/MixMind-AI"
+
+[project.scripts]
+mixmind-run = "app.main:start"
 
 [tool.ruff]
 line-length = 88
-target-version = "py312"
+target-version = "py313"
 extend-exclude = [
     ".git",
     ".venv",
@@ -29,18 +82,83 @@ extend-exclude = [
 ]
 
 [tool.ruff.lint]
-select = ["E", "F", "I", "B"]
-ignore = ["B008"]
+select = [
+    "E",   # pycodestyle errors
+    "W",   # pycodestyle warnings
+    "F",   # pyflakes
+    "I",   # isort
+    "N",   # pep8-naming
+    "B",   # bugbear
+    "UP",  # pyupgrade
+    "RUF", # ruff-specific
+    "C4",  # comprehensions
+]
+ignore = [
+    "B008",    # do not perform function calls in default argument defaults
+    "N801",    # class names should use CapCase convention
+    "N802",    # function names should be lowercase
+    "N818",    # exception name suffix
+    "E501",    # line too long (handled by formatter)
+    "RUF002",  # ambiguous character in docstring
+    "RUF003",  # ambiguous character in comment
+]
+
+[tool.ruff.format]
+quote-style = "double"
+indent-style = "space"
+skip-magic-trailing-comma = false
+line-ending = "auto"
+
+[tool.mypy]
+python_version = "3.13"
+strict = true
+ignore_missing_imports = true
+disallow_untyped_defs = true
+disallow_any_unimported = false
+warn_unused_ignores = true
+warn_return_any = false
+explicit_package_bases = true
+mypy_path = ["backend"]
+exclude = [
+    "frontend/",
+    ".venv/",
+    "build/",
+    "node_modules/",
+]
+
+[[tool.mypy.overrides]]
+module = [
+    "librosa.*",
+    "soundfile.*",
+    "scipy.*",
+    "matplotlib.*",
+    "sklearn.*",
+    "psutil.*",
+    "numba.*",
+    "soxr.*",
+]
+ignore_missing_imports = true
 
 [tool.pytest.ini_options]
 testpaths = ["backend/tests"]
 addopts = "-ra --cov=app --cov-report=term-missing --cov-fail-under=70"
+filterwarnings = [
+    "ignore::DeprecationWarning",
+    "ignore::UserWarning",
+]
 
 [tool.coverage.run]
 branch = true
-source = ["app"]
+source = ["backend/app"]
+omit = [
+    "backend/tests/*",
+    "backend/app/main.py",
+]
 
 [tool.coverage.report]
 show_missing = true
 skip_covered = false
 fail_under = 70
+
+[tool.coverage.paths]
+source = ["backend/app"]
