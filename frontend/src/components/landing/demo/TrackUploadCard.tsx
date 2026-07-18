@@ -13,6 +13,8 @@ interface TrackUploadCardProps {
   accentColor: string;
   compact?: boolean;
   audioSrc?: string;
+  previewStartSeconds?: number;
+  previewEndSeconds?: number;
 }
 
 function fmt(t: number) {
@@ -31,10 +33,13 @@ export function TrackUploadCard({
   accentColor,
   compact = false,
   audioSrc,
+  previewStartSeconds = 0,
+  previewEndSeconds,
 }: TrackUploadCardProps) {
   const [playing, setPlaying] = useState(false);
   const [currentTime, setCurrentTime] = useState(0);
   const [audioDuration, setAudioDuration] = useState(0);
+  const [segmentStart, setSegmentStart] = useState(0);
   const [mediaError, setMediaError] = useState(false);
   const audioRef = useRef<HTMLAudioElement | null>(null);
   const seekRef = useRef<HTMLDivElement | null>(null);
@@ -48,16 +53,39 @@ export function TrackUploadCard({
     if (!audioRef.current || !seekRef.current) return;
     const rect = seekRef.current.getBoundingClientRect();
     const x = (e.clientX - rect.left) / rect.width;
-    audioRef.current.currentTime = x * audioDuration;
-  }, [audioDuration]);
+    audioRef.current.currentTime = segmentStart + x * audioDuration;
+  }, [audioDuration, segmentStart]);
 
   useEffect(() => {
     if (!audioSrc) return;
     const el = new Audio(audioSrc);
     el.preload = "metadata";
-    el.ontimeupdate = () => { setCurrentTime(el.currentTime); };
-    el.onloadedmetadata = () => { setMediaError(false); setAudioDuration(el.duration); };
-    el.onended = () => setPlaying(false);
+    el.ontimeupdate = () => {
+      const start = Math.min(previewStartSeconds, el.duration);
+      const end = Math.min(previewEndSeconds ?? el.duration, el.duration);
+      if (el.currentTime >= end) {
+        el.pause();
+        el.currentTime = start;
+        setCurrentTime(0);
+        setPlaying(false);
+        return;
+      }
+      setCurrentTime(Math.max(0, el.currentTime - start));
+    };
+    el.onloadedmetadata = () => {
+      const start = Math.min(previewStartSeconds, el.duration);
+      const end = Math.max(start, Math.min(previewEndSeconds ?? el.duration, el.duration));
+      setMediaError(false);
+      setSegmentStart(start);
+      setAudioDuration(end - start);
+      setCurrentTime(0);
+      el.currentTime = start;
+    };
+    el.onended = () => {
+      el.currentTime = Math.min(previewStartSeconds, el.duration);
+      setCurrentTime(0);
+      setPlaying(false);
+    };
     el.onpause = () => setPlaying(false);
     el.onerror = () => { setPlaying(false); setMediaError(true); };
     audioRef.current = el;
@@ -65,7 +93,7 @@ export function TrackUploadCard({
       el.pause();
       el.src = "";
     };
-  }, [audioSrc]);
+  }, [audioSrc, previewEndSeconds, previewStartSeconds]);
 
   useEffect(() => {
     if (!audioRef.current) return;

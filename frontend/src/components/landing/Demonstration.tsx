@@ -32,9 +32,11 @@ const buildTracks = (trackA: string, trackB: string) => ({
     artist: "John Newman",
     bpm: 124,
     camelot: "8A",
-    duration: "3:45",
+    duration: "2:10–3:10",
     accentColor: "#44f3d0",
     audioSrc: trackA,
+    previewStartSeconds: 130,
+    previewEndSeconds: 190,
   },
   b: {
     label: "Track B",
@@ -54,8 +56,8 @@ export function Demonstration() {
   const [videoTime, setVideoTime] = useState(0);
   const { targetRef, manifest, loading, error, retry } = useDemoMedia();
   const tracks = buildTracks(
-    manifest?.assets.trackA.url ?? "",
     manifest?.assets.trackB.url ?? "",
+    manifest?.assets.trackA.url ?? "",
   );
 
   const handleGenerate = useCallback(() => setDemoState("processing"), []);
