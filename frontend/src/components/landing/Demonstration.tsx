@@ -196,11 +196,11 @@ export function Demonstration() {
           className="mx-auto mt-24 mb-16 max-w-4xl"
         >
           <div className="relative flex items-center gap-4">
-            <div className="h-px flex-1 bg-gradient-to-r from-transparent via-border/50 to-transparent" />
+            <div className="h-px flex-1 bg-linear-to-r from-transparent via-border/50 to-transparent" />
             <span className="shrink-0 text-[10px] font-semibold uppercase tracking-[0.3em] text-text-tertiary">
               Watch a real transition analyzed by MixMind
             </span>
-            <div className="h-px flex-1 bg-gradient-to-r from-transparent via-border/50 to-transparent" />
+            <div className="h-px flex-1 bg-linear-to-r from-transparent via-border/50 to-transparent" />
           </div>
         </motion.div>
 
