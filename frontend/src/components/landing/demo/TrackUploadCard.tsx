@@ -121,7 +121,7 @@ export function TrackUploadCard({
                 const pos = i / waveformBars.length;
                 const isPlayed = pos <= progress;
                 const animatedH = playing
-                  ? Math.min(h + Math.random() * 14, compact ? 24 : 32)
+                  ? Math.min(h + ((i * 11 + 5) % 14), compact ? 24 : 32)
                   : h * 0.35;
                 return (
                   <motion.div

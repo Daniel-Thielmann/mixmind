@@ -61,6 +61,11 @@ html {
   scroll-behavior: smooth;
 }
 
+.timeline-waveform-bar {
+  height: var(--bar-height);
+  background: linear-gradient(to top, var(--bar-start), var(--bar-end));
+}
+
 @utility animate-in {
   animation: animate-in 0.2s ease-out;
 }

@@ -1,7 +1,7 @@
 "use client";
 
-import { useMemo, useRef } from "react";
-import type { AIInsight, DemoMetadata } from "@/types/video";
+import { useMemo } from "react";
+import type { DemoMetadata } from "@/types/video";
 
 interface UseInsightsOptions {
   currentTime: number;
@@ -9,20 +9,19 @@ interface UseInsightsOptions {
 }
 
 export function useInsights({ currentTime, metadata }: UseInsightsOptions) {
-  const historyRef = useRef<AIInsight[]>([]);
-
   const insights = useMemo(() => metadata?.insights ?? [], [metadata]);
 
   const currentInsight = useMemo(() => {
-    const match = insights.find((insight) => {
+    return insights.find((insight) => {
       const end = insight.time + insight.duration;
       return currentTime >= insight.time && currentTime < end;
     }) ?? null;
-    if (match && !historyRef.current.find((h) => h.time === match.time)) {
-      historyRef.current = [...historyRef.current, match];
-    }
-    return match;
   }, [insights, currentTime]);
+
+  const insightHistory = useMemo(
+    () => insights.filter((insight) => insight.time <= currentTime),
+    [insights, currentTime],
+  );
 
   const nextInsight = useMemo(() => {
     const upcoming = insights
@@ -38,7 +37,7 @@ export function useInsights({ currentTime, metadata }: UseInsightsOptions) {
 
   return {
     currentInsight,
-    insightHistory: historyRef.current,
+    insightHistory,
     nextInsight,
     timeToNextInsight,
   };

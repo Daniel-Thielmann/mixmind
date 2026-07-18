@@ -2,6 +2,7 @@
 
 import { useState, useEffect } from "react";
 import { usePathname } from "next/navigation";
+import Link from "next/link";
 import { motion, AnimatePresence } from "framer-motion";
 import { Menu, X, LayoutDashboard, Sparkles, DollarSign, BookOpen } from "lucide-react";
 import { useAuth } from "@/hooks/useAuth";
@@ -62,7 +63,7 @@ export function Header() {
           />
 
           <div className="mx-auto flex h-16 max-w-7xl items-center justify-between px-6">
-            <a href="/" className="flex items-center gap-2">
+            <Link href="/" className="flex items-center gap-2">
               <motion.div
                 whileHover={{ scale: 1.05, rotate: -3 }}
                 className="flex h-8 w-8 items-center justify-center rounded-lg bg-gradient-to-br from-primary to-primary-dark text-xs font-bold text-background shadow-lg shadow-primary/20"
@@ -72,7 +73,7 @@ export function Header() {
               <span className="text-lg font-semibold tracking-tight text-text">
                 Mix<span className="text-primary">Mind</span>
               </span>
-            </a>
+            </Link>
 
             <nav className="hidden items-center gap-1 md:flex">
               {NAV_LINKS.map((link) => {

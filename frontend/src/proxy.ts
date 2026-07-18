@@ -2,7 +2,7 @@ import { NextResponse, type NextRequest } from "next/server";
 
 const protectedPaths = ["/dashboard", "/dashboard/:path*"];
 
-export function middleware(request: NextRequest) {
+export function proxy(request: NextRequest) {
   const { pathname } = request.nextUrl;
 
   const isProtected = protectedPaths.some((path) => {

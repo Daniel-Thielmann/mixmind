@@ -1,6 +1,7 @@
 "use client";
 
 import { useCallback, useRef, useState } from "react";
+import type { CSSProperties } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { useVideoPlayer } from "@/hooks/useVideoPlayer";
 import { useTimeline } from "@/hooks/useTimeline";
@@ -394,21 +395,28 @@ function TimelineSection({
               return timeAtBar >= z.startTime && timeAtBar <= z.endTime;
             },
           );
-          const barColor = inZone
-            ? `linear-gradient(to top, ${trackA?.color ?? "#44f3d0"}44, ${trackB?.color ?? "#8b5cf6"}44)`
-            : t < (metadata?.transitionZones[0]?.startTime ?? 0) / duration
-              ? `linear-gradient(to top, ${trackA?.color ?? "#44f3d0"}33, ${trackA?.color ?? "#44f3d0"}77)`
-              : `linear-gradient(to top, ${trackB?.color ?? "#8b5cf6"}33, ${trackB?.color ?? "#8b5cf6"}77)`;
+          const trackAColor = trackA?.color ?? "#44f3d0";
+          const trackBColor = trackB?.color ?? "#8b5cf6";
+          const beforeTransition =
+            t < (metadata?.transitionZones[0]?.startTime ?? 0) / duration;
+          const barStart = inZone
+            ? `${trackAColor}44`
+            : `${beforeTransition ? trackAColor : trackBColor}33`;
+          const barEnd = inZone
+            ? `${trackBColor}44`
+            : `${beforeTransition ? trackAColor : trackBColor}77`;
 
           return (
-            <motion.div
+            <div
               key={i}
-              className="flex-1 rounded-t-[1px]"
+              className={`timeline-waveform-bar flex-1 rounded-t-[1px] ${
+                currentPhase === "blending" ? "opacity-100" : "opacity-60"
+              }`}
               style={{
-                background: barColor,
-                height: `${Math.max(8, height * 100)}%`,
-                opacity: currentPhase === "blending" ? 1 : 0.6,
-              }}
+                "--bar-height": `${Math.max(8, height * 100).toFixed(4)}%`,
+                "--bar-start": barStart,
+                "--bar-end": barEnd,
+              } as CSSProperties}
             />
           );
         })}

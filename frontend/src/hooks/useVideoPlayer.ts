@@ -26,7 +26,6 @@ interface UseVideoPlayerOptions {
 }
 
 export function useVideoPlayer({
-  src,
   initialVolume = 0.7,
   initialMuted = false,
   initialPlaybackRate = 1,
@@ -43,7 +42,10 @@ export function useVideoPlayer({
   const rafRef = useRef<number>(0);
   const lastTimeRef = useRef<number>(0);
   const callbacksRef = useRef({ onPlay, onPause, onEnded, onTimeUpdate, onSeek, onStateChange });
-  callbacksRef.current = { onPlay, onPause, onEnded, onTimeUpdate, onSeek, onStateChange };
+
+  useEffect(() => {
+    callbacksRef.current = { onPlay, onPause, onEnded, onTimeUpdate, onSeek, onStateChange };
+  }, [onPlay, onPause, onEnded, onTimeUpdate, onSeek, onStateChange]);
 
   const [state, setState] = useState<VideoState>("idle");
   const [currentTime, setCurrentTime] = useState(0);
@@ -69,7 +71,7 @@ export function useVideoPlayer({
     cancelAnimationFrame(rafRef.current);
   }, []);
 
-  const handleTimeSync = useCallback(() => {
+  const handleTimeSync = useCallback(function syncTime() {
     const video = videoRef.current;
     if (!video) return;
     const t = video.currentTime;
@@ -79,7 +81,7 @@ export function useVideoPlayer({
       lastTimeRef.current = t;
     }
     if (!video.paused && !video.ended) {
-      rafRef.current = requestAnimationFrame(handleTimeSync);
+      rafRef.current = requestAnimationFrame(syncTime);
     }
   }, []);
 
@@ -245,7 +247,7 @@ export function useVideoPlayer({
 
     const onWaiting = () => updateState("loading");
     const onCanPlay = () => {
-      if (video.paused && state !== "idle") {
+      if (video.paused) {
         updateState("paused");
       } else if (!video.paused) {
         updateState("playing");

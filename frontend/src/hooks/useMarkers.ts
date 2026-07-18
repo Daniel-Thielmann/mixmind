@@ -17,7 +17,10 @@ export function useMarkers({
   const [reachedMarkerIds, setReachedMarkerIds] = useState<Set<number>>(new Set());
   const reachedRef = useRef<Set<number>>(new Set());
   const onMarkerReachedRef = useRef(onMarkerReached);
-  onMarkerReachedRef.current = onMarkerReached;
+
+  useEffect(() => {
+    onMarkerReachedRef.current = onMarkerReached;
+  }, [onMarkerReached]);
 
   const markers = useMemo(() => metadata?.markers ?? [], [metadata]);
 

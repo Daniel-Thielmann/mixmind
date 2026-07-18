@@ -59,7 +59,8 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   }, []);
 
   useEffect(() => {
-    refreshUser();
+    const timeoutId = window.setTimeout(() => void refreshUser(), 0);
+    return () => window.clearTimeout(timeoutId);
   }, [refreshUser]);
 
   const signInGoogle = useCallback(async () => {

@@ -1,18 +1,28 @@
 "use client";
 
 import { useState, useCallback } from "react";
+import dynamic from "next/dynamic";
 import { motion, AnimatePresence } from "framer-motion";
 import { SectionWrapper } from "./SectionWrapper";
 import { TrackUploadCard } from "./demo/TrackUploadCard";
 import { ProcessingPipeline } from "./demo/ProcessingPipeline";
 import { TransitionPreviewPlayer } from "./demo/TransitionPreviewPlayer";
 import { FeatureBadge } from "./demo/FeatureBadge";
-import { MixMindVideoPlayer } from "@/components/video";
 import { AIAnalysisPanel } from "@/components/ai-analysis/AIAnalysisPanel";
 import { DEMO_METADATA } from "@/constants/video";
 import type { VideoState } from "@/types/video";
 
 type DemoState = "idle" | "processing" | "complete";
+
+const MixMindVideoPlayer = dynamic(
+  () => import("@/components/video").then((module) => module.MixMindVideoPlayer),
+  {
+    ssr: false,
+    loading: () => (
+      <div className="aspect-video w-full animate-pulse rounded-xl bg-black" />
+    ),
+  },
+);
 
 const TRACKS = {
   a: {
