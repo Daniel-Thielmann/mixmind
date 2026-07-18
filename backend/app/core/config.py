@@ -47,6 +47,12 @@ class Settings(BaseSettings):
 
     BASE_URL: str = Field(default="http://localhost:8000")
 
+    SUPABASE_URL: str = Field(default="")
+    SUPABASE_SERVICE_ROLE_KEY: str = Field(default="", repr=False)
+    SUPABASE_DEMO_BUCKET: str = Field(default="mixmind-media")
+    DEMO_SIGNED_URL_TTL: int = Field(default=3600, ge=300, le=86400)
+    DEMO_MANIFEST_CACHE_TTL: int = Field(default=300, ge=0, le=3500)
+
     OPENROUTER_API_KEY: str = Field(default="")
     OPENROUTER_BASE_URL: str = Field(default="https://openrouter.ai/api/v1")
     OPENROUTER_MODEL: str = Field(default="openai/gpt-oss-20b:free")

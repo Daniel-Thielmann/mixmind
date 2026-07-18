@@ -572,7 +572,7 @@ export function MixMindVideoPlayer({
           src={src}
           poster={poster}
           className="h-full w-full object-contain"
-          preload="auto"
+          preload="metadata"
           playsInline
           onClick={toggle}
         />

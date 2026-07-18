@@ -11,6 +11,7 @@ import { FeatureBadge } from "./demo/FeatureBadge";
 import { AIAnalysisPanel } from "@/components/ai-analysis/AIAnalysisPanel";
 import { DEMO_METADATA } from "@/constants/video";
 import type { VideoState } from "@/types/video";
+import { useDemoMedia } from "@/hooks/useDemoMedia";
 
 type DemoState = "idle" | "processing" | "complete";
 
@@ -24,7 +25,7 @@ const MixMindVideoPlayer = dynamic(
   },
 );
 
-const TRACKS = {
+const buildTracks = (trackA: string, trackB: string) => ({
   a: {
     label: "Track A",
     title: "Love Me Again (Again) (Wh0 Remix)",
@@ -33,7 +34,7 @@ const TRACKS = {
     camelot: "8A",
     duration: "3:45",
     accentColor: "#44f3d0",
-    audioSrc: "/demo/track_a.mp3",
+    audioSrc: trackA,
   },
   b: {
     label: "Track B",
@@ -43,14 +44,19 @@ const TRACKS = {
     camelot: "8B",
     duration: "3:52",
     accentColor: "#3b82f6",
-    audioSrc: "/demo/track_b.mp3",
+    audioSrc: trackB,
   },
-};
+});
 
 export function Demonstration() {
   const [demoState, setDemoState] = useState<DemoState>("idle");
   const [videoPlaying, setVideoPlaying] = useState(false);
   const [videoTime, setVideoTime] = useState(0);
+  const { targetRef, manifest, loading, error, retry } = useDemoMedia();
+  const tracks = buildTracks(
+    manifest?.assets.trackA.url ?? "",
+    manifest?.assets.trackB.url ?? "",
+  );
 
   const handleGenerate = useCallback(() => setDemoState("processing"), []);
   const handleProcessingComplete = useCallback(
@@ -67,6 +73,7 @@ export function Demonstration() {
   return (
     <SectionWrapper id="demo" className="py-24 md:py-32">
       <div className="mx-auto max-w-5xl px-6">
+        <div ref={targetRef} aria-hidden="true" />
         <motion.div
           initial={{ opacity: 0, y: 20 }}
           whileInView={{ opacity: 1, y: 0 }}
@@ -89,7 +96,19 @@ export function Demonstration() {
           </p>
         </motion.div>
 
-        <AnimatePresence mode="wait">
+        {(loading || error || !manifest) && (
+          <div className="mb-12 flex min-h-48 items-center justify-center rounded-2xl border border-border bg-card/50 p-8 text-center">
+            {loading ? (
+              <p className="animate-pulse text-sm text-text-secondary">Loading real demonstration media…</p>
+            ) : error ? (
+              <div><p className="text-sm text-text-secondary">{error}</p><button type="button" onClick={() => void retry()} className="mt-4 rounded-lg border border-border px-4 py-2 text-sm text-text">Try again</button></div>
+            ) : (
+              <p className="text-sm text-text-secondary">The demonstration loads when this section enters view.</p>
+            )}
+          </div>
+        )}
+
+        {manifest && <AnimatePresence mode="wait">
           {demoState === "idle" && (
             <motion.div
               key="idle"
@@ -100,8 +119,8 @@ export function Demonstration() {
               className="space-y-8"
             >
               <div className="grid gap-4 sm:grid-cols-2">
-                <TrackUploadCard {...TRACKS.a} />
-                <TrackUploadCard {...TRACKS.b} />
+                <TrackUploadCard {...tracks.a} />
+                <TrackUploadCard {...tracks.b} />
               </div>
 
               <motion.div
@@ -150,21 +169,21 @@ export function Demonstration() {
               className="space-y-8"
             >
               <div className="grid gap-4 sm:grid-cols-2">
-                <TrackUploadCard {...TRACKS.a} compact />
-                <TrackUploadCard {...TRACKS.b} compact />
+                <TrackUploadCard {...tracks.a} compact />
+                <TrackUploadCard {...tracks.b} compact />
               </div>
 
               <TransitionPreviewPlayer
                 title="AI Generated Transition"
                 artist="MixMind AI · Claptone-Inspired Blend"
-                bpmA={TRACKS.a.bpm}
-                bpmB={TRACKS.b.bpm}
-                camelotA={TRACKS.a.camelot}
-                camelotB={TRACKS.b.camelot}
+                bpmA={tracks.a.bpm}
+                bpmB={tracks.b.bpm}
+                camelotA={tracks.a.camelot}
+                camelotB={tracks.b.camelot}
                 compatibility={98}
                 generatedTime="Generated in 3.2s"
                 color="#44f3d0"
-                audioSrc="/demo/transition.mp3"
+                audioSrc={manifest.assets.transition.url}
               />
 
               <motion.p
@@ -195,7 +214,7 @@ export function Demonstration() {
               ></motion.div>
             </motion.div>
           )}
-        </AnimatePresence>
+        </AnimatePresence>}
 
         {/* Divider */}
         <motion.div
@@ -222,15 +241,15 @@ export function Demonstration() {
           transition={{ duration: 0.6 }}
           className="mx-auto max-w-4xl"
         >
-          <div suppressHydrationWarning>
+          {manifest ? <div suppressHydrationWarning>
             <MixMindVideoPlayer
-              src={DEMO_METADATA.src}
-              poster={DEMO_METADATA.poster}
+              src={manifest.assets.video.url}
+              poster={manifest.assets.poster.url}
               metadata={DEMO_METADATA}
               onStateChange={handleVideoState}
               onTimeUpdate={handleVideoTime}
             />
-          </div>
+          </div> : <div className="aspect-video w-full rounded-xl border border-border bg-black/70" />}
 
           <div className="mt-8">
             <AIAnalysisPanel currentTime={videoTime} isPlaying={videoPlaying} />
