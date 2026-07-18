@@ -44,8 +44,8 @@ export function Footer() {
               </span>
             </a>
             <p className="max-w-sm text-sm leading-relaxed text-text-secondary">
-              AI-powered DJ track analysis platform. Upload, analyze, and get intelligent
-              recommendations for seamless harmonic transitions.
+              AI-powered DJ track analysis platform. Upload, analyze, and get
+              intelligent recommendations for seamless harmonic transitions.
             </p>
             <div className="mt-6 flex items-center gap-3">
               {["GitHub", "Twitter", "Discord"].map((platform) => (
@@ -84,9 +84,12 @@ export function Footer() {
 
         <div className="mt-12 border-t border-border/50 pt-6">
           <div className="flex flex-col items-center justify-between gap-4 text-xs text-text-tertiary sm:flex-row">
-            <p>&copy; {new Date().getFullYear()} MixMind AI. All rights reserved.</p>
             <p>
-              Built with ❤️ for DJs who love precision.
+              &copy; {new Date().getFullYear()} MixMind AI. All rights reserved.
+            </p>
+            <p>
+              Crafted by Daniel Thielmann for DJs who turn precision and
+              technology into unforgettable sets.
             </p>
           </div>
         </div>
