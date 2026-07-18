@@ -36,9 +36,9 @@ export function AIFocus({ analysis, currentTime }: AIFocusProps) {
     : { icon: "●", label: "Waiting..." };
 
   return (
-    <div className="space-y-3">
-      <p className="text-[11px] font-medium text-zinc-400">AI Focus</p>
-      <div className="relative flex min-h-[80px] items-center justify-center rounded-lg border border-zinc-800 bg-zinc-900/20">
+    <div className="space-y-4">
+      <p className="text-[13px] font-medium text-zinc-400">AI Focus</p>
+      <div className="relative flex min-h-32 items-center justify-center rounded-xl border border-zinc-800 bg-zinc-900/20">
         <AnimatePresence mode="wait">
           <motion.div
             key={focus.label}
@@ -46,10 +46,10 @@ export function AIFocus({ analysis, currentTime }: AIFocusProps) {
             animate={{ opacity: 1, scale: 1 }}
             exit={{ opacity: 0, scale: 0.9 }}
             transition={{ duration: 0.25 }}
-            className="flex flex-col items-center gap-2 py-4"
+            className="flex flex-col items-center gap-3 px-5 py-5 text-center"
           >
-            <span className="text-2xl">{focus.icon}</span>
-            <span className="text-[13px] font-medium text-zinc-200">
+            <span className="text-3xl">{focus.icon}</span>
+            <span className="text-sm font-medium text-zinc-200">
               {focus.label}
             </span>
           </motion.div>

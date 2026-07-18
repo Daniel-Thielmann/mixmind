@@ -33,9 +33,9 @@ export function LiveCommentary({
   }, [currentTime, analysis.events]);
 
   return (
-    <div className="space-y-3">
-      <p className="text-[11px] font-medium text-zinc-400">Live Commentary</p>
-      <div className="relative min-h-[72px]">
+    <div className="space-y-4">
+      <p className="text-[13px] font-medium text-zinc-400">Live Commentary</p>
+      <div className="relative min-h-32">
         <AnimatePresence mode="wait">
           {currentEvent ? (
             <motion.div
@@ -46,11 +46,11 @@ export function LiveCommentary({
               transition={{ duration: 0.25 }}
               className="absolute inset-0"
             >
-              <div className="rounded-lg border border-zinc-800 bg-zinc-900/40 px-4 py-3">
-                <span className="font-mono text-[11px] font-medium text-primary">
+              <div className="flex min-h-32 flex-col justify-center rounded-xl border border-zinc-800 bg-zinc-900/40 px-5 py-4">
+                <span className="font-mono text-xs font-medium text-primary">
                   {formatTime(currentEvent.time)}
                 </span>
-                <p className="mt-1 text-[13px] leading-relaxed text-zinc-300">
+                <p className="mt-2 text-sm leading-relaxed text-zinc-300">
                   {currentEvent.description}
                 </p>
               </div>
@@ -62,7 +62,7 @@ export function LiveCommentary({
               animate={{ opacity: 1 }}
               className="absolute inset-0 flex items-center justify-center rounded-lg border border-dashed border-zinc-800"
             >
-              <span className="text-[12px] text-zinc-600">
+              <span className="text-sm text-zinc-600">
                 Waiting for transition start...
               </span>
             </motion.div>

@@ -86,15 +86,15 @@ export function Demonstration() {
     transitionTime < 70 ? "a" : transitionTime < 130 ? "b" : "c";
 
   return (
-    <SectionWrapper id="demo" className="py-24 md:py-32">
-      <div className="mx-auto max-w-5xl px-6">
+    <SectionWrapper id="demo" className="py-24 md:py-28">
+      <div className="mx-auto max-w-7xl px-6">
         <div ref={targetRef} aria-hidden="true" />
         <motion.div
           initial={{ opacity: 0, y: 20 }}
           whileInView={{ opacity: 1, y: 0 }}
           viewport={{ once: true }}
           transition={{ duration: 0.5 }}
-          className="mb-16 text-center"
+          className="mx-auto mb-16 max-w-5xl text-center"
         >
           <span className="mb-4 inline-block text-xs font-semibold uppercase tracking-[0.25em] text-primary">
             Demonstration
@@ -112,7 +112,7 @@ export function Demonstration() {
         </motion.div>
 
         {(loading || error || !manifest) && (
-          <div className="mb-12 flex min-h-48 items-center justify-center rounded-2xl border border-border bg-card/50 p-8 text-center">
+          <div className="mx-auto mb-12 flex min-h-48 max-w-5xl items-center justify-center rounded-2xl border border-border bg-card/50 p-8 text-center">
             {loading ? (
               <p className="animate-pulse text-sm text-text-secondary">
                 Loading real demonstration media…
@@ -145,7 +145,7 @@ export function Demonstration() {
                 animate={{ opacity: 1, y: 0 }}
                 exit={{ opacity: 0, y: -20 }}
                 transition={{ duration: 0.4, ease: [0.25, 0.1, 0.25, 1] }}
-                className="space-y-8"
+                className="mx-auto max-w-5xl space-y-8"
               >
                 <div className="grid gap-4 md:grid-cols-3">
                   <TrackUploadCard {...tracks.a} />
@@ -196,7 +196,7 @@ export function Demonstration() {
                 initial={{ opacity: 0 }}
                 animate={{ opacity: 1 }}
                 transition={{ duration: 0.5 }}
-                className="space-y-8"
+                className="mx-auto max-w-5xl space-y-8"
               >
                 <div className="grid gap-4 md:grid-cols-3">
                   <TrackUploadCard
@@ -296,7 +296,7 @@ export function Demonstration() {
           whileInView={{ opacity: 1, y: 0 }}
           viewport={{ once: true }}
           transition={{ duration: 0.6 }}
-          className="relative left-1/2 grid w-[calc(100vw-3rem)] max-w-350 -translate-x-1/2 items-start gap-8 xl:grid-cols-[56rem_minmax(0,1fr)]"
+          className="grid w-full items-start gap-8 xl:grid-cols-[56rem_minmax(0,1fr)]"
         >
           {manifest ? (
             <div className="w-full max-w-4xl" suppressHydrationWarning>

@@ -3,7 +3,7 @@ from __future__ import annotations
 from pathlib import Path
 from typing import ClassVar
 
-from pydantic import Field
+from pydantic import AliasChoices, Field
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
 BASE_DIR: Path = Path(__file__).resolve().parent.parent.parent
@@ -44,9 +44,20 @@ class Settings(BaseSettings):
     TEMP_DIR: str = "temp"
 
     SUPABASE_URL: str = ""
-    SUPABASE_SECRET_KEY: str = Field(default="", repr=False)
-    SUPABASE_STORAGE_BUCKET: str = "mixmind-media"
-    SUPABASE_STORAGE_ENABLED: bool = False
+    SUPABASE_SECRET_KEY: str = Field(
+        default="",
+        repr=False,
+        validation_alias=AliasChoices(
+            "SUPABASE_SECRET_KEY", "SUPABASE_SERVICE_ROLE_KEY"
+        ),
+    )
+    SUPABASE_STORAGE_BUCKET: str = Field(
+        default="mixmind-media",
+        validation_alias=AliasChoices(
+            "SUPABASE_STORAGE_BUCKET", "SUPABASE_DEMO_BUCKET"
+        ),
+    )
+    SUPABASE_STORAGE_ENABLED: bool = True
     SUPABASE_STORAGE_PUBLIC: bool = False
     SUPABASE_SIGNED_URL_TTL: int = Field(default=3600, ge=60, le=604800)
 

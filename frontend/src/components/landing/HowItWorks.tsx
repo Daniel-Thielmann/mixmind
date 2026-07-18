@@ -21,7 +21,7 @@ const ICON_MAP: Record<string, React.ElementType> = {
 
 export function HowItWorks() {
   return (
-    <SectionWrapper id="how-it-works" className="py-24 md:py-32">
+    <SectionWrapper id="how-it-works" className="py-24 md:py-28">
       <div className="mx-auto max-w-7xl px-6">
         <motion.div
           initial={{ opacity: 0, y: 20 }}

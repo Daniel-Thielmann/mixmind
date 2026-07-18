@@ -6,7 +6,7 @@ interface FeatureBadgeProps {
 
 export function FeatureBadge({ variant = "coming-soon" }: FeatureBadgeProps) {
   return (
-    <div className="relative w-full max-w-3xl overflow-hidden rounded-2xl border border-primary/25 bg-linear-to-br from-primary/[0.09] via-card/80 to-accent-blue/[0.06] p-6 text-left shadow-[0_24px_70px_-40px_rgba(68,243,208,0.45)] backdrop-blur-md md:p-7">
+    <div className="relative w-full overflow-hidden rounded-2xl border border-primary/25 bg-linear-to-br from-primary/[0.09] via-card/80 to-accent-blue/[0.06] p-6 text-left shadow-[0_24px_70px_-40px_rgba(68,243,208,0.45)] backdrop-blur-md md:p-7">
       <div className="pointer-events-none absolute -top-24 right-0 h-48 w-48 rounded-full bg-primary/10 blur-3xl" />
       <div className="relative">
         <div className="mb-4 flex flex-wrap items-center gap-3">

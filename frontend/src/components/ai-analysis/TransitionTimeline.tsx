@@ -36,8 +36,8 @@ export function TransitionTimeline({
   );
 
   return (
-    <div className="select-none space-y-3">
-      <div className="flex items-center justify-between text-[11px]">
+    <div className="select-none space-y-4">
+      <div className="flex items-center justify-between text-[13px]">
         <span className="font-medium text-zinc-400">Transition Timeline</span>
         <span className="font-mono tabular-nums text-zinc-600">
           {formatTime(currentTime)}
@@ -45,17 +45,17 @@ export function TransitionTimeline({
       </div>
 
       {/* Track color legend */}
-      <div className="flex items-center gap-4 text-[11px]">
+      <div className="flex flex-wrap items-center gap-x-5 gap-y-2 text-xs">
         <div className="flex items-center gap-1.5">
           <div
-            className="h-2 w-2 rounded-full"
+            className="h-2.5 w-2.5 rounded-full"
             style={{ backgroundColor: trackColors.a }}
           />
           <span className="text-zinc-500">{analysis.tracks.a.name}</span>
         </div>
         <div className="flex items-center gap-1.5">
           <div
-            className="h-2 w-2 rounded-full"
+            className="h-2.5 w-2.5 rounded-full"
             style={{ backgroundColor: trackColors.b }}
           />
           <span className="text-zinc-500">{analysis.tracks.b.name}</span>
@@ -63,7 +63,7 @@ export function TransitionTimeline({
       </div>
 
       {/* Timeline bar */}
-      <div className="relative h-7 overflow-hidden rounded-lg bg-zinc-900/60">
+      <div className="relative h-11 overflow-hidden rounded-xl bg-zinc-900/60">
         {analysis.regions.map((region, i) => {
           const left = (region.startTime / duration) * 100;
           const width = ((region.endTime - region.startTime) / duration) * 100;
@@ -105,7 +105,7 @@ export function TransitionTimeline({
               style={{ left: `${left}%`, width: `${width}%` }}
             >
               <span
-                className={`whitespace-nowrap px-1 text-[9px] font-semibold uppercase tracking-wider transition-colors ${
+                className={`whitespace-nowrap px-1 text-[10px] font-semibold uppercase tracking-wider transition-colors ${
                   isActive ? "text-white" : "text-zinc-600"
                 }`}
               >
@@ -122,12 +122,12 @@ export function TransitionTimeline({
           transition={{ duration: 0.15, ease: "linear" }}
         >
           <div className="absolute inset-y-0 left-0 w-px bg-gradient-to-b from-primary/60 via-primary to-primary/60 shadow-sm shadow-primary/30" />
-          <div className="absolute -left-1 top-1/2 h-2 w-2 -translate-y-1/2 rounded-full bg-primary shadow-sm shadow-primary/50" />
+          <div className="absolute -left-1.5 top-1/2 h-3 w-3 -translate-y-1/2 rounded-full bg-primary shadow-sm shadow-primary/50" />
         </motion.div>
       </div>
 
       {/* Active region label */}
-      <div className="flex items-center justify-between text-[11px]">
+      <div className="flex items-center justify-between text-xs">
         <motion.span
           key={activeRegion?.label ?? "start"}
           initial={{ opacity: 0, y: -2 }}

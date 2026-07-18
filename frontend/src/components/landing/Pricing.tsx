@@ -76,7 +76,7 @@ const PLANS = [
 
 export function Pricing() {
   return (
-    <SectionWrapper id="pricing" className="border-t border-border/50 py-24 md:py-32">
+    <SectionWrapper id="pricing" className="border-t border-border/50 py-24 md:py-28">
       <div className="mx-auto max-w-7xl px-6">
         <motion.div
           initial={{ opacity: 0, y: 20 }}

@@ -12,7 +12,7 @@ const THOUGHTS = [
 
 export function TransitionRecommendation() {
   return (
-    <SectionWrapper id="ai-recommendation" className="border-t border-border/50 py-24 md:py-36">
+    <SectionWrapper id="ai-recommendation" className="border-t border-border/50 py-24 md:py-28">
       <div className="mx-auto max-w-5xl px-6">
         <div className="text-center">
           <span className="text-xs font-semibold uppercase tracking-[0.25em] text-primary">AI recommendation</span>

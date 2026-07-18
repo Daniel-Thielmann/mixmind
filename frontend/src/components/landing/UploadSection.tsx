@@ -5,7 +5,7 @@ import { ArrowRight, AudioLines, Sparkles } from "lucide-react";
 
 export function UploadSection() {
   return (
-    <section id="analyzer" className="relative overflow-hidden py-24 md:py-32">
+    <section id="analyzer" className="relative overflow-hidden py-24 md:py-28">
       <div className="pointer-events-none absolute inset-0">
         <div className="absolute left-1/2 top-0 h-[400px] w-[400px] -translate-x-1/2 rounded-full bg-primary/5 blur-3xl" />
       </div>

@@ -19,7 +19,7 @@ export function Hero() {
       <BackgroundEffects />
       <Particles />
 
-      <div className="relative z-10 mx-auto flex max-w-7xl flex-col items-center gap-16 lg:flex-row lg:items-center">
+      <div className="relative z-10 mx-auto flex w-full max-w-7xl flex-col items-center gap-16 lg:flex-row lg:items-center">
         <div className="flex-1 text-center lg:text-left">
           <motion.div
             initial={{ opacity: 0, y: 20 }}

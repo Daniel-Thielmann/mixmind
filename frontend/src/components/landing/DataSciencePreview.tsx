@@ -8,7 +8,7 @@ const SEEN = ["Harmonic compatibility", "Phrase alignment", "Bass collision", "V
 
 export function DataSciencePreview() {
   return (
-    <SectionWrapper className="border-t border-border/50 py-24 md:py-36">
+    <SectionWrapper className="border-t border-border/50 py-24 md:py-28">
       <div className="mx-auto max-w-6xl px-6 text-center">
         <span className="text-xs font-semibold uppercase tracking-[0.25em] text-primary">Beyond the waveform</span>
         <h2 className="mx-auto mt-5 max-w-3xl text-3xl font-bold tracking-tight md:text-5xl">You hear the music. <span className="text-primary">MixMind reveals what connects it.</span></h2>

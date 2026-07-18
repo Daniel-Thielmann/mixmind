@@ -23,14 +23,14 @@ export function AIAnalysisPanel({
   const isEnded = useMemo(() => currentTime >= duration - 0.5, [currentTime, duration]);
 
   return (
-    <div className={`space-y-8 transition-opacity ${isPlaying ? "opacity-100" : "opacity-90"}`}>
+    <div className={`space-y-10 transition-opacity ${isPlaying ? "opacity-100" : "opacity-90"}`}>
       <TransitionTimeline
         analysis={analysis}
         currentTime={currentTime}
         duration={duration}
       />
 
-      <div className="grid gap-6 md:grid-cols-2">
+      <div className="grid gap-8">
         <LiveCommentary
           analysis={analysis}
           currentTime={currentTime}
