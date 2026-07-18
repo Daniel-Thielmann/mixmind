@@ -26,6 +26,9 @@ dependencies = [
     "pillow>=12.2.0",
     "psutil>=7.0.0",
     "json_repair>=0.61.0",
+    "sqlalchemy>=2.0.51",
+    "psycopg[binary]>=3.3.4",
+    "alembic>=1.18.5",
     "supabase>=2.31.0",
 ]
 
@@ -163,3 +166,8 @@ fail_under = 70
 
 [tool.coverage.paths]
 source = ["backend/app"]
+
+[dependency-groups]
+dev = [
+    "pre-commit>=4.6.0",
+]

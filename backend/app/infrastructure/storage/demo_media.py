@@ -22,7 +22,7 @@ class DemoMediaService:
         self._cached: tuple[float, dict[str, Any]] | None = None
 
     def _storage(self) -> Any:
-        if not self.config.SUPABASE_URL or not self.config.SUPABASE_SERVICE_ROLE_KEY:
+        if not self.config.SUPABASE_URL or not self.config.SUPABASE_SECRET_KEY:
             raise HTTPException(
                 status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
                 detail="Demonstration media is not configured.",
@@ -36,11 +36,11 @@ class DemoMediaService:
                     detail="Demonstration storage dependency is unavailable.",
                 ) from exc
             client = create_client(
-                self.config.SUPABASE_URL, self.config.SUPABASE_SERVICE_ROLE_KEY
+                self.config.SUPABASE_URL, self.config.SUPABASE_SECRET_KEY
             )
         else:
             client = self._client
-        return client.storage.from_(self.config.SUPABASE_DEMO_BUCKET)
+        return client.storage.from_(self.config.SUPABASE_STORAGE_BUCKET)
 
     def get_signed_manifest(self) -> dict[str, Any]:
         now = time.time()

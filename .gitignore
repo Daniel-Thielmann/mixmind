@@ -118,3 +118,6 @@ frontend/public/demo/thumbnail.jpg
 
 # Docker
 .dockerignore
+
+frontend/public/demo/*.mp3
+frontend/public/demo/*.mp4

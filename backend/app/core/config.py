@@ -43,13 +43,17 @@ class Settings(BaseSettings):
     PROCESSED_DIR: str = "processed"
     TEMP_DIR: str = "temp"
 
+    SUPABASE_URL: str = ""
+    SUPABASE_SECRET_KEY: str = Field(default="", repr=False)
+    SUPABASE_STORAGE_BUCKET: str = "mixmind-media"
+    SUPABASE_STORAGE_ENABLED: bool = False
+    SUPABASE_STORAGE_PUBLIC: bool = False
+    SUPABASE_SIGNED_URL_TTL: int = Field(default=3600, ge=60, le=604800)
+
     MAX_UPLOAD_SIZE: int = Field(default=100, ge=1, le=500)
 
     BASE_URL: str = Field(default="http://localhost:8000")
 
-    SUPABASE_URL: str = Field(default="")
-    SUPABASE_SERVICE_ROLE_KEY: str = Field(default="", repr=False)
-    SUPABASE_DEMO_BUCKET: str = Field(default="mixmind-media")
     DEMO_SIGNED_URL_TTL: int = Field(default=3600, ge=300, le=86400)
     DEMO_MANIFEST_CACHE_TTL: int = Field(default=300, ge=0, le=3500)
 
@@ -108,6 +112,15 @@ class Settings(BaseSettings):
     @property
     def is_production(self) -> bool:
         return self.ENVIRONMENT == "production"
+
+    @property
+    def is_supabase_storage_configured(self) -> bool:
+        return bool(
+            self.SUPABASE_STORAGE_ENABLED
+            and self.SUPABASE_URL
+            and self.SUPABASE_SECRET_KEY
+            and self.SUPABASE_STORAGE_BUCKET
+        )
 
 
 settings = Settings()

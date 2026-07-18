@@ -10,6 +10,7 @@ volumes:
   uploads-data:
   processed-data:
   temp-data:
+  postgres-data:
 
 services:
   backend:
@@ -26,11 +27,20 @@ services:
       - uploads-data:/app/uploads
       - processed-data:/app/processed
       - temp-data:/app/temp
+    depends_on:
+      postgres:
+        condition: service_started
     networks:
       - mixmind-network
     restart: unless-stopped
     healthcheck:
-      test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://localhost:8000/api/v1/health')"]
+      test:
+        [
+          "CMD",
+          "python",
+          "-c",
+          "import urllib.request; urllib.request.urlopen('http://localhost:8000/api/v1/health')",
+        ]
       interval: 30s
       timeout: 10s
       retries: 3
@@ -52,4 +62,25 @@ services:
         condition: service_healthy
     networks:
       - mixmind-network
+    restart: unless-stopped
+
+  postgres:
+    image: postgres:17
+
+    container_name: mixmind-postgres
+
+    environment:
+      POSTGRES_DB: mixmind
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: postgres
+
+    ports:
+      - "5432:5432"
+
+    volumes:
+      - postgres-data:/var/lib/postgresql/data
+
+    networks:
+      - mixmind-network
+
     restart: unless-stopped

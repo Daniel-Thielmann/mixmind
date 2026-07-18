@@ -9,6 +9,8 @@ from uuid import uuid4
 
 import librosa
 import numpy as np
+from fastapi import UploadFile
+
 from app.application.dto.api import AnalysisMetadata, UploadAnalysisResponse
 from app.application.use_cases.compatibility.compare_tracks.service import (
     CompatibilityService,
@@ -44,7 +46,6 @@ from app.infrastructure.storage.storage_service import (
     StorageService,
     storage_service,
 )
-from fastapi import UploadFile
 
 logger = logging.getLogger(__name__)
 
@@ -385,6 +386,53 @@ class AnalysisService:
             track_a=spectrogram_a,
             track_b=spectrogram_b,
         )
+
+        # ---- Mirror generated visualizations to Supabase Storage ----
+        upload_artifact = getattr(self._storage, "upload_artifact", None)
+        if callable(upload_artifact):
+            storage_root = settings.processed_path.parent
+            waveform_a_path = storage_root / waveform_a.image_path
+            waveform_b_path = storage_root / waveform_b.image_path
+            spectrogram_a_path = storage_root / spectrogram_a.image_path
+            spectrogram_b_path = storage_root / spectrogram_b.image_path
+
+            waveform_a = waveform_a.model_copy(
+                update={
+                    "url": upload_artifact(
+                        waveform_a_path,
+                        f"analyses/{analysis_id}/waveforms/{waveform_a_path.name}",
+                    )
+                }
+            )
+            waveform_b = waveform_b.model_copy(
+                update={
+                    "url": upload_artifact(
+                        waveform_b_path,
+                        f"analyses/{analysis_id}/waveforms/{waveform_b_path.name}",
+                    )
+                }
+            )
+            spectrogram_a = spectrogram_a.model_copy(
+                update={
+                    "url": upload_artifact(
+                        spectrogram_a_path,
+                        f"analyses/{analysis_id}/spectrograms/{spectrogram_a_path.name}",
+                    )
+                }
+            )
+            spectrogram_b = spectrogram_b.model_copy(
+                update={
+                    "url": upload_artifact(
+                        spectrogram_b_path,
+                        f"analyses/{analysis_id}/spectrograms/{spectrogram_b_path.name}",
+                    )
+                }
+            )
+            waveforms = Waveforms(track_a=waveform_a, track_b=waveform_b)
+            spectrograms = Spectrograms(
+                track_a=spectrogram_a,
+                track_b=spectrogram_b,
+            )
 
         # ---- Step 9 - Build API Response ----
         step_start = time.monotonic()

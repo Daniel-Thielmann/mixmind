@@ -48,8 +48,8 @@ def configured_settings():
     return settings.model_copy(
         update={
             "SUPABASE_URL": "https://project.invalid",
-            "SUPABASE_SERVICE_ROLE_KEY": "never-return-this-secret",
-            "SUPABASE_DEMO_BUCKET": "test-media",
+            "SUPABASE_SECRET_KEY": "never-return-this-secret",
+            "SUPABASE_STORAGE_BUCKET": "test-media",
             "DEMO_SIGNED_URL_TTL": 3600,
             "DEMO_MANIFEST_CACHE_TTL": 300,
         }
@@ -76,7 +76,7 @@ def test_manifest_uses_private_cache() -> None:
 
 
 def test_missing_configuration_is_service_unavailable() -> None:
-    config = settings.model_copy(update={"SUPABASE_URL": "", "SUPABASE_SERVICE_ROLE_KEY": ""})
+    config = settings.model_copy(update={"SUPABASE_URL": "", "SUPABASE_SECRET_KEY": ""})
     with pytest.raises(HTTPException) as exc:
         DemoMediaService(config).get_signed_manifest()
     assert exc.value.status_code == 503

@@ -2,8 +2,9 @@
 
 from __future__ import annotations
 
-from app.infrastructure.llm.agent import dj_agent
 from fastapi import APIRouter
+
+from app.infrastructure.llm.agent import dj_agent
 
 router = APIRouter()
 
