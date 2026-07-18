@@ -90,7 +90,7 @@ export function Pricing() {
           </span>
           <h2 className="text-3xl font-bold tracking-tight md:text-5xl">
             Choose Your{" "}
-            <span className="bg-gradient-to-r from-primary to-accent-blue bg-clip-text text-transparent">
+            <span className="bg-linear-to-r from-primary to-accent-blue bg-clip-text text-transparent">
               Plan
             </span>
           </h2>
@@ -121,7 +121,7 @@ export function Pricing() {
             >
               {plan.badge && (
                 <div className="absolute -top-3 left-1/2 -translate-x-1/2">
-                  <span className="inline-block rounded-full bg-gradient-to-r from-primary to-accent-blue px-3 py-1 text-[10px] font-semibold uppercase tracking-wider text-background">
+                  <span className="inline-block rounded-full bg-linear-to-r from-primary to-accent-blue px-3 py-1 text-[10px] font-semibold uppercase tracking-wider text-background">
                     {plan.badge}
                   </span>
                 </div>
