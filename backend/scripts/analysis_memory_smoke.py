@@ -19,6 +19,7 @@ def main() -> int:
     parser = argparse.ArgumentParser()
     parser.add_argument("track_a", type=Path)
     parser.add_argument("track_b", type=Path)
+    parser.add_argument("--repeat", type=int, default=1)
     args = parser.parse_args()
 
     logging.getLogger().setLevel(logging.WARNING)
@@ -36,10 +37,19 @@ def main() -> int:
     started = time.perf_counter()
 
     try:
-        with args.track_a.open("rb") as file_a, args.track_b.open("rb") as file_b:
-            result = analysis_service.analyze(
-                UploadFile(filename=args.track_a.name, file=file_a),
-                UploadFile(filename=args.track_b.name, file=file_b),
+        result = None
+        for run_number in range(1, args.repeat + 1):
+            run_started = time.perf_counter()
+            with args.track_a.open("rb") as file_a, args.track_b.open("rb") as file_b:
+                result = analysis_service.analyze(
+                    UploadFile(filename=args.track_a.name, file=file_a),
+                    UploadFile(filename=args.track_b.name, file=file_b),
+                )
+            print(
+                f"LOCAL_ANALYSIS_RUN_{run_number}_OK "
+                f"elapsed={time.perf_counter() - run_started:.2f}s "
+                f"rss={process.memory_info().rss / 1024 / 1024:.2f}MB "
+                f"peak_rss={peak_rss / 1024 / 1024:.2f}MB"
             )
     except Exception as exc:
         print(
@@ -52,6 +62,7 @@ def main() -> int:
         stop.set()
         monitor.join()
 
+    assert result is not None
     print(
         f"LOCAL_ANALYSIS_OK elapsed={time.perf_counter() - started:.2f}s "
         f"peak_rss={peak_rss / 1024 / 1024:.2f}MB "

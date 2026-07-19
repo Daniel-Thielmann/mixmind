@@ -2,13 +2,13 @@ import gc
 import json
 import logging
 import os
-import subprocess
 import time
 from pathlib import Path
 from uuid import uuid4
 
-import librosa
 import numpy as np
+import soundfile as sf
+import soxr
 
 from app.application.dto.api import AnalysisMetadata, UploadAnalysisResponse
 from app.application.ports.storage import AnalysisArtifactStorage, UploadSource
@@ -20,7 +20,6 @@ from app.core.config import settings
 from app.core.log_utils import (
     get_memory_mb,
     log_audio_metadata,
-    log_library_versions,
     log_memory,
 )
 from app.domain.value_objects.visualization import Spectrograms, Waveforms
@@ -49,61 +48,23 @@ from app.infrastructure.storage.storage_service import (
 
 logger = logging.getLogger(__name__)
 
-# ---- Startup instrumentation ----
-_logged_versions = False
-
-
-def _ensure_version_logged() -> None:
-    global _logged_versions
-    if not _logged_versions:
-        log_library_versions()
-        _logged_versions = True
-
-
-def _detect_load_backend(path: Path) -> str:
-    """Detect which backend librosa will use for a given file."""
-    ext = os.path.splitext(str(path))[1].lower()
-    soundfile_exts = {".wav", ".flac", ".ogg", ".aiff", ".aif", ".au", ".pcm", ".svx"}
-    if ext in soundfile_exts:
-        return "soundfile"
-    else:
-        return "audioread (ffmpeg)"
-
 
 def _log_file_details(path: Path, label: str) -> None:
     """Log detailed file information before loading."""
     try:
         stat = os.stat(str(path))
         ext = os.path.splitext(str(path))[1].lower()
-        backend = _detect_load_backend(path)
         logger.info(
-            "  File [%s]: path=%s | size=%d bytes (%.2f MB) | ext=%s | backend=%s",
+            "  File [%s]: path=%s | size=%d bytes (%.2f MB) | ext=%s",
             label,
             path.name,
             stat.st_size,
             stat.st_size / (1024 * 1024),
             ext,
-            backend,
         )
-
-        # For audioread backends, check ffmpeg availability
-        if backend == "audioread (ffmpeg)":
-            try:
-                result = subprocess.run(
-                    ["ffmpeg", "-version"],
-                    capture_output=True,
-                    text=True,
-                    timeout=5,
-                )
-                first_line = result.stdout.split("\n")[0] if result.stdout else "N/A"
-                logger.info("  ffmpeg: %s", first_line)
-            except Exception as exc:
-                logger.info("  ffmpeg check failed: %s", exc)
 
         # Try soundfile.info for metadata (works with most formats)
         try:
-            import soundfile as sf
-
             sf_info = sf.info(str(path))
             logger.info(
                 "  soundfile.info [%s]: samplerate=%d | channels=%d | frames=%d"
@@ -129,10 +90,6 @@ def _load_audio_once(path: Path, label: str) -> tuple[np.ndarray, int]:
     mem_entry = get_memory_mb()
     log_memory(f"Enter _load_audio_once {label}")
 
-    if settings.DEBUG:
-        _ensure_version_logged()
-        log_memory(f"After version logging {label}")
-
     logger.info("")
     logger.info("=" * 50)
     logger.info("  LOADING AUDIO: %s (%s)", label, path.name)
@@ -143,21 +100,30 @@ def _load_audio_once(path: Path, label: str) -> tuple[np.ndarray, int]:
     log_memory(f"After file details {label}")
 
     mem_before_load = get_memory_mb()
-    log_memory(f"Before librosa.load {label}")
+    log_memory(f"Before bounded decode {label}")
     load_start = time.monotonic()
 
-    # ---- librosa.load ----
-    # Analyze a bounded, downsampled window. BPM, key, and energy don't require
-    # keeping the full native-rate track in memory.
-    _y, _sr = librosa.load(
-        path,
-        sr=settings.ANALYSIS_SAMPLE_RATE,
-        mono=True,
-        duration=settings.ANALYSIS_MAX_DURATION,
-        res_type="soxr_lq",
-    )
-    audio_data: np.ndarray = _y
-    sr: int = int(_sr)
+    # Decode only the requested window. librosa's audioread fallback can decode
+    # an entire MP3 and retain large FFmpeg buffers before applying duration.
+    max_duration = int(getattr(settings, "ANALYSIS_MAX_DURATION", 90))
+    target_sr = int(getattr(settings, "ANALYSIS_SAMPLE_RATE", 22050))
+    with sf.SoundFile(str(path)) as audio_file:
+        native_sr = int(audio_file.samplerate)
+        decoded = audio_file.read(
+            frames=native_sr * max_duration,
+            dtype="float32",
+            always_2d=True,
+        )
+
+    mono = decoded.mean(axis=1, dtype=np.float32)
+    del decoded
+    sr = target_sr
+    if native_sr != sr:
+        audio_data = soxr.resample(mono, native_sr, sr, quality="LQ")
+        del mono
+    else:
+        audio_data = mono
+    audio_data = np.ascontiguousarray(audio_data, dtype=np.float32)
 
     load_elapsed = time.monotonic() - load_start
     mem_now = get_memory_mb()
@@ -175,7 +141,7 @@ def _load_audio_once(path: Path, label: str) -> tuple[np.ndarray, int]:
     logger.info("  Memory BEFORE load:     %.2f MB", mem_before_load)
     logger.info("  Memory AFTER load:      %.2f MB", mem_now)
     logger.info("  Cost: version+file info: +%.2f MB", mem_before_load - mem_entry)
-    logger.info("  Delta (librosa.load):   +%.2f MB", delta_from_load)
+    logger.info("  Delta (bounded decode): +%.2f MB", delta_from_load)
     logger.info("  ndarray.nbytes:         %.2f MB", ndarray_mb)
     logger.info("  Overhead (delta - arr):  %.2f MB", overhead_mb)
     logger.info(
@@ -195,16 +161,6 @@ def _load_audio_once(path: Path, label: str) -> tuple[np.ndarray, int]:
     logger.info("")
 
     return audio_data, sr
-
-
-def _release_audio(label: str, *arrays: object) -> None:
-    """Delete numpy arrays and force garbage collection."""
-    for arr in arrays:
-        if arr is not None:
-            del arr
-    gc.collect()
-    log_memory(f"After release {label}")
-    logger.info("  Released memory for %s", label)
 
 
 class AnalysisService:
@@ -297,16 +253,13 @@ class AnalysisService:
             logger.exception("Step 3 - Waveform Track A FAILED")
             raise
 
-        # ---- Release audio_data_a BEFORE Spectrogram to free ~25 MB ----
-        _release_audio("Track A audio (before Spectrogram)", audio_data_a)
-        audio_data_a = None  # type: ignore[assignment]
-        gc.collect()
-
-        # ---- Step 4 - Spectrogram Track A (loads fresh — no audio_data alive) ----
+        # ---- Step 4 - Spectrogram Track A (reuses the bounded audio window) ----
         step_start = time.monotonic()
         try:
             log_memory("Before Spectrogram A")
-            spectrogram_a = self._spectrogram_generator.generate(path_a)
+            spectrogram_a = self._spectrogram_generator.generate(
+                path_a, audio_data=audio_data_a, sample_rate=sr_a
+            )
             log_memory("After Spectrogram A")
             logger.info(
                 "Step 4 - Spectrogram Track A completed in %.2f s",
@@ -315,6 +268,10 @@ class AnalysisService:
         except Exception:
             logger.exception("Step 4 - Spectrogram Track A FAILED")
             raise
+
+        audio_data_a = None  # type: ignore[assignment]
+        gc.collect()
+        log_memory("After release Track A audio")
 
         # ---- Step 5 - Audio analysis Track B ----
         step_start = time.monotonic()
@@ -349,16 +306,13 @@ class AnalysisService:
             logger.exception("Step 6 - Waveform Track B FAILED")
             raise
 
-        # ---- Release audio_data_b BEFORE Spectrogram to free ~20 MB ----
-        _release_audio("Track B audio (before Spectrogram)", audio_data_b)
-        audio_data_b = None  # type: ignore[assignment]
-        gc.collect()
-
-        # ---- Step 7 - Spectrogram Track B (loads fresh — no audio_data alive) ----
+        # ---- Step 7 - Spectrogram Track B (reuses the bounded audio window) ----
         step_start = time.monotonic()
         try:
             log_memory("Before Spectrogram B")
-            spectrogram_b = self._spectrogram_generator.generate(path_b)
+            spectrogram_b = self._spectrogram_generator.generate(
+                path_b, audio_data=audio_data_b, sample_rate=sr_b
+            )
             log_memory("After Spectrogram B")
             logger.info(
                 "Step 7 - Spectrogram Track B completed in %.2f s",
@@ -367,6 +321,10 @@ class AnalysisService:
         except Exception:
             logger.exception("Step 7 - Spectrogram Track B FAILED")
             raise
+
+        audio_data_b = None  # type: ignore[assignment]
+        gc.collect()
+        log_memory("After release Track B audio")
 
         # ---- Step 8 - Compatibility Engine ----
         step_start = time.monotonic()

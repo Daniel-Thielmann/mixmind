@@ -1,13 +1,11 @@
-import gc
 import logging
 import time
-import traceback
 from pathlib import Path
 from typing import ClassVar
 
-import librosa
 import numpy as np
 import soundfile as sf
+import soxr
 
 from app.core.config import settings
 from app.core.exceptions import AudioAnalysisException
@@ -75,28 +73,26 @@ class AudioAnalyzer:
     }
 
     def _detect_key(self, y: np.ndarray, sr: int) -> str:
-        """Calculates the musical key using the Krumhansl-Schmuckler algorithm."""
-
-        logger.info("  Key detection: computing memory-efficient chroma STFT...")
-        log_memory("Chroma CQT start")
-
-        # POTENCIAL GARGALO: chroma_cqt é computacionalmente caro para arquivos longos
-        # e pode consumir muita memória dependendo do tamanho do áudio.
-        try:
-            chroma = librosa.feature.chroma_stft(
-                y=y,
-                sr=sr,
-                n_fft=2048,
-                hop_length=2048,
-            )
-        except Exception:
-            logger.exception("  chroma_stft FAILED")
-            raise
-
-        log_memory("Chroma CQT end")
-        logger.info("  chroma_stft computed — shape: %s", chroma.shape)
-
-        chroma_sum = np.sum(chroma, axis=1)
+        """Estimate musical key from a small set of bounded FFT windows."""
+        logger.info("  Key detection: computing bounded NumPy chroma...")
+        log_memory("Key detection start")
+        window_size = 8192
+        chroma_sum = np.zeros(12, dtype=np.float64)
+        if y.size >= window_size:
+            starts = np.linspace(0, y.size - window_size, num=12, dtype=np.int64)
+            window = np.hanning(window_size).astype(np.float32)
+            frequencies = np.fft.rfftfreq(window_size, d=1.0 / sr)
+            valid = (frequencies >= 55.0) & (frequencies <= 5000.0)
+            midi = np.rint(69.0 + 12.0 * np.log2(frequencies[valid] / 440.0))
+            pitch_classes = np.mod(midi.astype(np.int16), 12)
+            for start in starts:
+                spectrum = np.abs(np.fft.rfft(y[start : start + window_size] * window))
+                power = np.square(spectrum[valid], dtype=np.float64)
+                chroma_sum += np.bincount(pitch_classes, weights=power, minlength=12)[
+                    :12
+                ]
+        else:
+            chroma_sum[0] = 1.0
 
         major_correlations = []
         minor_correlations = []
@@ -117,7 +113,54 @@ class AudioAnalyzer:
             detected = f"{self.NOTES[max_minor_idx]} Minor"
 
         logger.info("  Key detected: %s", detected)
+        log_memory("Key detection end")
         return detected
+
+    @staticmethod
+    def _estimate_bpm(y: np.ndarray, sr: int) -> float:
+        """Estimate tempo from bounded spectral flux without scipy or numba."""
+        stride = max(1, sr // 5512)
+        reduced = y[::stride]
+        reduced_sr = sr / stride
+        fft_size = 512
+        hop = 128
+        frame_count = 1 + max(0, (reduced.size - fft_size) // hop)
+        if frame_count < 8:
+            return 120.0
+
+        window = np.hanning(fft_size).astype(np.float32)
+        onset = np.zeros(frame_count, dtype=np.float32)
+        previous = np.zeros(fft_size // 2 + 1, dtype=np.float32)
+        for index in range(frame_count):
+            start = index * hop
+            magnitude = np.abs(np.fft.rfft(reduced[start : start + fft_size] * window))
+            onset[index] = np.maximum(magnitude - previous, 0.0).sum()
+            previous = magnitude
+
+        onset -= np.median(onset)
+        onset = np.maximum(onset, 0.0)
+        onset -= onset.mean()
+        envelope_rate = reduced_sr / hop
+        min_lag = max(1, int(envelope_rate * 60.0 / 200.0))
+        max_lag = min(onset.size - 1, int(envelope_rate * 60.0 / 60.0))
+        if max_lag <= min_lag or not np.any(onset):
+            return 120.0
+
+        correlations = []
+        for lag in range(min_lag, max_lag + 1):
+            left = onset[:-lag]
+            right = onset[lag:]
+            denominator = np.linalg.norm(left) * np.linalg.norm(right)
+            correlations.append(
+                float(np.dot(left, right) / denominator) if denominator else 0.0
+            )
+        lag = min_lag + int(np.argmax(correlations))
+        bpm = 60.0 * envelope_rate / lag
+        while bpm < 80.0:
+            bpm *= 2.0
+        while bpm > 180.0:
+            bpm /= 2.0
+        return float(bpm)
 
     def analyze(
         self,
@@ -171,22 +214,29 @@ class AudioAnalyzer:
         try:
             if audio_data is not None and sample_rate is not None:
                 logger.info("  Using pre-loaded audio data (single-load optimization)")
-                duration = librosa.get_duration(y=audio_data, sr=sample_rate)
+                duration = audio_data.size / sample_rate
             else:
                 logger.info("  Loading audio file...")
                 load_start = time.monotonic()
-                _y, _sr = librosa.load(
-                    audio_path,
-                    sr=settings.ANALYSIS_SAMPLE_RATE,
-                    mono=True,
-                    duration=settings.ANALYSIS_MAX_DURATION,
-                    res_type="soxr_lq",
+                with sf.SoundFile(str(audio_path)) as audio_file:
+                    native_sr = int(audio_file.samplerate)
+                    decoded = audio_file.read(
+                        frames=native_sr * settings.ANALYSIS_MAX_DURATION,
+                        dtype="float32",
+                        always_2d=True,
+                    )
+                mono = decoded.mean(axis=1, dtype=np.float32)
+                del decoded
+                sample_rate = settings.ANALYSIS_SAMPLE_RATE
+                audio_data = (
+                    soxr.resample(mono, native_sr, sample_rate, quality="LQ")
+                    if native_sr != sample_rate
+                    else mono
                 )
-                audio_data = _y
-                sample_rate = int(_sr)
+                audio_data = np.ascontiguousarray(audio_data, dtype=np.float32)
                 load_elapsed = time.monotonic() - load_start
-                log_memory("After librosa.load")
-                duration = librosa.get_duration(y=audio_data, sr=sample_rate)
+                log_memory("After bounded decode")
+                duration = audio_data.size / sample_rate
                 logger.info(
                     "  Audio loaded in %.2f s | dtype=%s | shape=%s"
                     " | nbytes=%d (%.2f MB) | sr=%d | duration=%.2f s",
@@ -235,24 +285,17 @@ class AudioAnalyzer:
             try:
                 # ---- Início do beat_track ----
                 logger.info(
-                    "  Calling librosa.beat.beat_track(y, sr=%d)...", sample_rate
+                    "  Calling lightweight BPM estimator (sr=%d)...", sample_rate
                 )
-                logger.info(
-                    "  (This will internally compute onset_strength + tempo estimation)"
-                )
+                logger.info("  (bounded energy envelope + short-lag autocorrelation)")
 
-                tempo, beats = librosa.beat.beat_track(
-                    y=audio_data,
-                    sr=sample_rate,
-                    hop_length=1024,
-                )
+                tempo = self._estimate_bpm(audio_data, int(sample_rate))
 
                 bpm_elapsed = time.monotonic() - bpm_start
-                logger.info("  librosa.beat.beat_track returned")
-                beats_shape = beats.shape if hasattr(beats, "shape") else "N/A"
+                logger.info("  lightweight BPM estimation returned")
                 log_memory_detail(
                     "After beat_track",
-                    f"tempo={tempo}, beats.shape={beats_shape}",
+                    f"tempo={tempo}",
                 )
                 logger.info("  === BEAT_TRACK END (%.2f s) ===", bpm_elapsed)
                 logger.info("")
@@ -260,29 +303,11 @@ class AudioAnalyzer:
             except Exception:
                 logger.error("  === BEAT_TRACK FAILED ===")
                 log_memory_detail("beat_track FAILED")
-                logger.error("  Traceback:\n%s", traceback.format_exc())
                 raise
 
-            # ---- Tarefa 5: gc.collect() após beat_track ----
-            gc.collect()
-            log_memory_detail("After beat_track + gc.collect")
-            logger.info("  === POST BEAT_TRACK GC ===")
-            if settings.DEBUG:
-                large_objects: list[tuple[str, tuple[int, ...], type, int]] = []
-                for obj in gc.get_objects():
-                    try:
-                        if isinstance(obj, np.ndarray) and obj.nbytes > 1024 * 1024:
-                            large_objects.append(
-                                (type(obj).__name__, obj.shape, obj.dtype, obj.nbytes)
-                            )
-                    except ReferenceError:
-                        pass
-                logger.info("  Large numpy arrays alive: %d", len(large_objects))
-            logger.info("  === END POST BEAT_TRACK GC ===")
-
             logger.info("  Computing RMS energy...")
-            rms = librosa.feature.rms(
-                y=audio_data,
+            energy = float(
+                np.sqrt(np.mean(np.square(audio_data[::4], dtype=np.float64)))
             )
 
             logger.info("  Detecting musical key (Camelot)...")
@@ -296,19 +321,12 @@ class AudioAnalyzer:
                 camelot_code,
             )
 
-        except (
-            librosa.util.exceptions.ParameterError,
-            sf.LibsndfileError,
-            OSError,
-            ValueError,
-        ) as exc:
+        except (sf.LibsndfileError, OSError, ValueError) as exc:
             logger.exception("Audio analysis failed for: %s", audio_path.name)
             raise AudioAnalysisException(audio_path.name) from exc
 
-        tempo = np.asarray(tempo).reshape(-1)[0]
         bpm = round(float(tempo), 2)
-
-        energy = round(float(np.mean(rms)), 4)
+        energy = round(energy, 4)
 
         log_memory("AudioAnalyzer end")
 
