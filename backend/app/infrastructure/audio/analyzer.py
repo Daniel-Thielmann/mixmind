@@ -9,6 +9,7 @@ import librosa
 import numpy as np
 import soundfile as sf
 
+from app.core.config import settings
 from app.core.exceptions import AudioAnalysisException
 from app.core.log_utils import (
     log_memory,
@@ -76,21 +77,24 @@ class AudioAnalyzer:
     def _detect_key(self, y: np.ndarray, sr: int) -> str:
         """Calculates the musical key using the Krumhansl-Schmuckler algorithm."""
 
-        logger.info("  Key detection: computing chroma_cqt (potentially heavy)...")
+        logger.info("  Key detection: computing memory-efficient chroma STFT...")
         log_memory("Chroma CQT start")
 
         # POTENCIAL GARGALO: chroma_cqt é computacionalmente caro para arquivos longos
         # e pode consumir muita memória dependendo do tamanho do áudio.
         try:
-            chroma = librosa.feature.chroma_cqt(y=y, sr=sr)
-        except Exception:
-            logger.exception(
-                "  chroma_cqt FAILED — this may be the root cause of the 502"
+            chroma = librosa.feature.chroma_stft(
+                y=y,
+                sr=sr,
+                n_fft=2048,
+                hop_length=2048,
             )
+        except Exception:
+            logger.exception("  chroma_stft FAILED")
             raise
 
         log_memory("Chroma CQT end")
-        logger.info("  chroma_cqt computed — shape: %s", chroma.shape)
+        logger.info("  chroma_stft computed — shape: %s", chroma.shape)
 
         chroma_sum = np.sum(chroma, axis=1)
 
@@ -173,8 +177,10 @@ class AudioAnalyzer:
                 load_start = time.monotonic()
                 _y, _sr = librosa.load(
                     audio_path,
-                    sr=None,
+                    sr=settings.ANALYSIS_SAMPLE_RATE,
                     mono=True,
+                    duration=settings.ANALYSIS_MAX_DURATION,
+                    res_type="soxr_lq",
                 )
                 audio_data = _y
                 sample_rate = int(_sr)
@@ -238,6 +244,7 @@ class AudioAnalyzer:
                 tempo, beats = librosa.beat.beat_track(
                     y=audio_data,
                     sr=sample_rate,
+                    hop_length=1024,
                 )
 
                 bpm_elapsed = time.monotonic() - bpm_start
@@ -260,31 +267,17 @@ class AudioAnalyzer:
             gc.collect()
             log_memory_detail("After beat_track + gc.collect")
             logger.info("  === POST BEAT_TRACK GC ===")
-            # Verificar objetos grandes ainda vivos
-            large_objects: list[tuple[str, tuple[int, ...], type, int]] = []
-            for obj in gc.get_objects():
-                try:
-                    if isinstance(obj, np.ndarray) and obj.nbytes > 1024 * 1024:
-                        large_objects.append(
-                            (type(obj).__name__, obj.shape, obj.dtype, obj.nbytes)
-                        )
-                except ReferenceError:
-                    pass
-            if large_objects:
-                logger.info("  Large numpy arrays still alive after beat_track + gc:")
-                for i, (typ, shape, dtype, nbytes) in enumerate(large_objects):
-                    logger.info(
-                        "    [%d] %s shape=%s dtype=%s nbytes=%.2f MB",
-                        i,
-                        typ,
-                        shape,
-                        dtype,
-                        nbytes / (1024 * 1024),
-                    )
-            else:
-                logger.info(
-                    "  No large numpy arrays (>1 MB) alive after beat_track + gc"
-                )
+            if settings.DEBUG:
+                large_objects: list[tuple[str, tuple[int, ...], type, int]] = []
+                for obj in gc.get_objects():
+                    try:
+                        if isinstance(obj, np.ndarray) and obj.nbytes > 1024 * 1024:
+                            large_objects.append(
+                                (type(obj).__name__, obj.shape, obj.dtype, obj.nbytes)
+                            )
+                    except ReferenceError:
+                        pass
+                logger.info("  Large numpy arrays alive: %d", len(large_objects))
             logger.info("  === END POST BEAT_TRACK GC ===")
 
             logger.info("  Computing RMS energy...")
@@ -321,8 +314,13 @@ class AudioAnalyzer:
 
         return AudioAnalysis(
             filename=audio_path.name,
-            duration=round(float(duration), 2),
-            sample_rate=int(sample_rate),
+            duration=round(
+                float(sf_info.duration) if sf_info is not None else float(duration),
+                2,
+            ),
+            sample_rate=(
+                int(sf_info.samplerate) if sf_info is not None else int(sample_rate)
+            ),
             bpm=bpm,
             energy=energy,
             key=detected_key,

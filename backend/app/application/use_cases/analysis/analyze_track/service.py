@@ -129,9 +129,9 @@ def _load_audio_once(path: Path, label: str) -> tuple[np.ndarray, int]:
     mem_entry = get_memory_mb()
     log_memory(f"Enter _load_audio_once {label}")
 
-    _ensure_version_logged()
-
-    log_memory(f"After version logging {label}")
+    if settings.DEBUG:
+        _ensure_version_logged()
+        log_memory(f"After version logging {label}")
 
     logger.info("")
     logger.info("=" * 50)
@@ -147,9 +147,15 @@ def _load_audio_once(path: Path, label: str) -> tuple[np.ndarray, int]:
     load_start = time.monotonic()
 
     # ---- librosa.load ----
-    # sr=None: native sample rate, no resampling
-    # mono=True: average channels to mono
-    _y, _sr = librosa.load(path, sr=None, mono=True)
+    # Analyze a bounded, downsampled window. BPM, key, and energy don't require
+    # keeping the full native-rate track in memory.
+    _y, _sr = librosa.load(
+        path,
+        sr=settings.ANALYSIS_SAMPLE_RATE,
+        mono=True,
+        duration=settings.ANALYSIS_MAX_DURATION,
+        res_type="soxr_lq",
+    )
     audio_data: np.ndarray = _y
     sr: int = int(_sr)
 
