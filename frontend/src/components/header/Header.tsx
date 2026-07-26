@@ -17,6 +17,7 @@ import {
 } from "lucide-react";
 import { useAuth } from "@/hooks/useAuth";
 import { Button } from "@/components/ui/button";
+import { GitHubRepositoryButton } from "@/components/ui/GitHubRepositoryButton";
 import { AuthDialog } from "@/components/auth/AuthDialog";
 import { UserDropdown } from "@/components/auth/UserDropdown";
 
@@ -34,9 +35,24 @@ const NAV_LINKS = [
     sectionId: "ai-recommendation",
     icon: BrainCircuit,
   },
-  { label: "Features", href: "/#features", sectionId: "features", icon: Sparkles },
-  { label: "Analyzer", href: "/#analyzer", sectionId: "analyzer", icon: AudioLines },
-  { label: "Pricing", href: "/#pricing", sectionId: "pricing", icon: DollarSign },
+  {
+    label: "Features",
+    href: "/#features",
+    sectionId: "features",
+    icon: Sparkles,
+  },
+  {
+    label: "Analyzer",
+    href: "/#analyzer",
+    sectionId: "analyzer",
+    icon: AudioLines,
+  },
+  {
+    label: "Pricing",
+    href: "/#pricing",
+    sectionId: "pricing",
+    icon: DollarSign,
+  },
 ];
 
 export function Header() {
@@ -91,7 +107,8 @@ export function Header() {
     if (!section) return;
 
     const headerOffset = 80;
-    const targetTop = section.getBoundingClientRect().top + window.scrollY - headerOffset;
+    const targetTop =
+      section.getBoundingClientRect().top + window.scrollY - headerOffset;
     window.history.replaceState(null, "", `#${sectionId}`);
     window.scrollTo({ top: targetTop, behavior: "smooth" });
     setActiveSection(sectionId);
@@ -172,7 +189,11 @@ export function Header() {
                       <motion.span
                         layoutId="nav-active"
                         className="absolute inset-0 rounded-lg bg-primary/10"
-                        transition={{ type: "spring", stiffness: 380, damping: 30 }}
+                        transition={{
+                          type: "spring",
+                          stiffness: 380,
+                          damping: 30,
+                        }}
                       />
                     )}
                     <link.icon className="relative h-4 w-4" />
@@ -180,7 +201,7 @@ export function Header() {
                   </a>
                 );
               })}
-              <div className="ml-4">
+              <div className="ml-auto flex items-center gap-2">
                 {loading ? (
                   <div className="h-9 w-20 animate-pulse rounded-lg bg-card" />
                 ) : isAuthenticated ? (
@@ -194,6 +215,15 @@ export function Header() {
                     Sign In
                   </Button>
                 )}
+                <GitHubRepositoryButton
+                  repositoryUrl="https://github.com/Daniel-Thielmann/mixmind-ai"
+                  size="md"
+                  variant="ghost"
+                  showLabel={false}
+                  showArrow={false}
+                  iconSize={32}
+                  className="px-3 py-3"
+                />
               </div>
             </nav>
 
@@ -202,7 +232,11 @@ export function Header() {
               className="flex h-9 w-9 items-center justify-center rounded-lg text-text-secondary hover:text-text md:hidden"
               aria-label={mobileOpen ? "Close menu" : "Open menu"}
             >
-              {mobileOpen ? <X className="h-5 w-5" /> : <Menu className="h-5 w-5" />}
+              {mobileOpen ? (
+                <X className="h-5 w-5" />
+              ) : (
+                <Menu className="h-5 w-5" />
+              )}
             </button>
           </div>
         </div>
@@ -238,13 +272,21 @@ export function Header() {
                   );
                 })}
                 <div className="mt-2 border-t border-border/50 pt-2">
+                  <GitHubRepositoryButton
+                    repositoryUrl="https://github.com/Daniel-Thielmann/mixmind-ai"
+                    size="md"
+                    variant="ghost"
+                    className="w-full justify-start"
+                    showLabel={false}
+                    showArrow={false}
+                  />
                   {loading ? (
-                    <div className="h-10 animate-pulse rounded-lg bg-card" />
+                    <div className="mt-2 h-10 animate-pulse rounded-lg bg-card" />
                   ) : isAuthenticated ? (
                     <a
                       href="/dashboard"
                       onClick={() => setMobileOpen(false)}
-                      className="flex items-center gap-2 rounded-lg bg-primary/10 px-3 py-2.5 text-sm font-medium text-primary transition-colors hover:bg-primary/20"
+                      className="mt-2 flex items-center gap-2 rounded-lg bg-primary/10 px-3 py-2.5 text-sm font-medium text-primary transition-colors hover:bg-primary/20"
                     >
                       <LayoutDashboard className="h-4 w-4" />
                       Dashboard
@@ -255,7 +297,7 @@ export function Header() {
                         setMobileOpen(false);
                         setAuthOpen(true);
                       }}
-                      className="w-full rounded-lg bg-primary px-3 py-2.5 text-sm font-medium text-background transition-colors hover:bg-primary-dark"
+                      className="mt-2 w-full rounded-lg bg-primary px-3 py-2.5 text-sm font-medium text-background transition-colors hover:bg-primary-dark"
                     >
                       Sign In
                     </button>
