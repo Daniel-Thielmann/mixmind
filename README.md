@@ -1,48 +1,56 @@
-# 🎧 MixMind
-
-> **AI-powered DJ Mixing Assistant**
->
-> Professional audio analysis, transition planning and intelligent DJ recommendations.
-
-<p align="center">
-
-![Python](https://img.shields.io/badge/Python-3.13-blue)
-![FastAPI](https://img.shields.io/badge/FastAPI-Latest-green)
-![Next.js](https://img.shields.io/badge/Next.js-16-black)
-![React](https://img.shields.io/badge/React-19-61DAFB)
-![Docker](https://img.shields.io/badge/Docker-Compose-2496ED)
-![License](https://img.shields.io/badge/license-MIT-blue)
-![Tests](https://img.shields.io/badge/tests-158-success)
-![Coverage](https://img.shields.io/badge/coverage-96%25-success)
-![Status](https://img.shields.io/badge/status-v1.0-success)
-
-</p>
+<div align="center">
+  <br/>
+  <img src="frontend\public\dash.png" alt="MinMind" width="800" style="border-radius: 8px;"/>
+  <br/><br/>
+  <h1>MixMind</h1>
+  <p><strong>AI-powered DJ Mixing Assistant</strong></p>
+  <p><strong>Professional audio analysis, transition planning and intelligent DJ recommendations.</strong></p>
+  <p>
+    <img src="https://img.shields.io/badge/Python-3.13-blue" alt="Python"/>
+    <img src="https://img.shields.io/badge/FastAPI-Latest-green" alt="FastAPI"/>
+    <img src="https://img.shields.io/badge/Next.js-16-black" alt="Next.js"/>
+    <img src="https://img.shields.io/badge/React-19-61DAFB" alt="React"/>
+    <img src="https://img.shields.io/badge/Docker-Compose-2496ED" alt="Docker"/>
+    <img src="https://img.shields.io/badge/license-MIT-blue" alt="License"/>
+    <img src="https://img.shields.io/badge/tests-158-success" alt="Tests"/>
+    <img src="https://img.shields.io/badge/coverage-96%25-success" alt="Coverage"/>
+    <img src="https://img.shields.io/badge/status-v1.0-success" alt="Status"/>
+  </p>
+  <br/>
+</div>
 
 ---
 
-# Overview
+## Table of Contents
+
+- [About](#about)
+- [Features](#features)
+- [Example Response](#example-response)
+- [Architecture](#architecture)
+- [Tech Stack](#tech-stack)
+- [Project Structure](#project-structure)
+- [Audio Processing Pipeline](#audio-processing-pipeline)
+- [Musical Features](#musical-features)
+- [Demo Assets](#demo-assets)
+- [Running Locally](#running-locally)
+- [Running with Docker](#running-with-docker)
+- [Running Tests](#running-tests)
+- [Code Quality](#code-quality)
+- [Roadmap](#roadmap)
+- [New Roadmap for v2](#new-roadmap-for-v2)
+- [Academic Context](#academic-context)
+- [Contributing](#contributing)
+- [License](#license)
+
+---
+
+# About
 
 MixMind is an audio analysis platform designed to assist DJs and music producers by automatically extracting relevant musical information from tracks.
 
 Instead of manually analyzing songs, the platform performs Digital Signal Processing (DSP) techniques to compute musical features and estimate how compatible two tracks are for mixing.
 
 This project is being developed as the practical project for the **DCC082 – Sistemas Multimídia** course at the **Federal University of Juiz de Fora (UFJF)**.
-
----
-
-# Screenshots
-
-## Dashboard
-
-![Dashboard](docs/images/dashboard.png)
-
-## AI Recommendation
-
-![AI Recommendation](docs/images/ai_recommendation.png)
-
-## Track Analysis
-
-![Track Analysis](docs/images/track.png)
 
 ---
 
@@ -67,81 +75,6 @@ This project is being developed as the practical project for the **DCC082 – Si
 - Docker support
 - Automated tests
 - Continuous Integration
-
----
-
-# Example Response
-
-```json
-{
-  "track_a": {
-    "filename": "Piece Of Your Heart.mp3",
-    "duration": 152.91,
-    "sample_rate": 44100,
-    "bpm": 123.05,
-    "energy": 0.2403
-  },
-  "track_b": {
-    "filename": "Stolen Dance.mp3",
-    "duration": 121.87,
-    "sample_rate": 44100,
-    "bpm": 129.2,
-    "energy": 0.2639
-  },
-  "compatibility": {
-    "compatibility_score": 60.1,
-    "tempo_difference": 6.15,
-    "energy_difference": 0.0236,
-    "tempo_match": "Good",
-    "energy_match": "Very Good",
-    "overall_rating": "Good"
-  }
-}
-```
-
----
-
-# Architecture
-
-```text
-                                    User
-
-                   │
-
-         Next.js Dashboard
-
-                   │
-
-          FastAPI REST API
-
-                   │
-
-        Analysis Pipeline
-
-      ┌──────────┴──────────┐
-
-      ▼                     ▼
-
-Audio Analyzer        AI Recommendation
-
-      │                     │
-
-      ▼                     ▼
-
- Librosa DSP         OpenRouter LLM
-
-      │                     │
-
-      └──────────┬──────────┘
-
-                 ▼
-
-         Compatibility Engine
-
-                 ▼
-
-         Professional Dashboard
-```
 
 ---
 
@@ -187,6 +120,50 @@ Audio Analyzer        AI Recommendation
 - MyPy (strict mode)
 - Pre-commit hooks
 - GitHub Actions
+
+---
+
+# Architecture
+
+```text
+                 User
+
+                   │
+
+         Next.js Dashboard
+
+                   │
+
+          FastAPI REST API
+
+                   │
+
+        Analysis Pipeline
+
+      ┌──────────┴──────────┐
+
+      ▼                     ▼
+
+Audio Analyzer        AI Recommendation
+
+      │                     │
+
+      ▼                     ▼
+
+ Librosa DSP         OpenRouter LLM
+
+      │                     │
+
+      └──────────┬──────────┘
+
+                 ▼
+
+         Compatibility Engine
+
+                 ▼
+
+         Professional Dashboard
+```
 
 ---
 
