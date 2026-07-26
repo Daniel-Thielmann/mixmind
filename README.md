@@ -1,6 +1,6 @@
 <div align="center">
   <br/>
-  <img src="frontend\public\dash.png" alt="MinMind" width="800" style="border-radius: 8px;"/>
+  <img src="frontend\public\dash.png" alt="MixMind" width="800" style="border-radius: 8px;"/>
   <br/><br/>
   <h1>MixMind</h1>
   <p><strong>AI-powered DJ Mixing Assistant</strong></p>
@@ -25,9 +25,8 @@
 
 - [About](#about)
 - [Features](#features)
-- [Example Response](#example-response)
-- [Architecture](#architecture)
 - [Tech Stack](#tech-stack)
+- [Architecture](#architecture)
 - [Project Structure](#project-structure)
 - [Audio Processing Pipeline](#audio-processing-pipeline)
 - [Musical Features](#musical-features)
