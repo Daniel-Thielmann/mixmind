@@ -79,46 +79,13 @@ This project is being developed as the practical project for the **DCC082 – Si
 
 # Tech Stack
 
-## Frontend
-
-- Next.js 16
-- React 19
-- TypeScript
-- Tailwind CSS
-- Framer Motion
-- Recharts
-- Lucide Icons
-
-## Backend
-
-- Python 3.13
-- FastAPI
-- Pydantic / Pydantic Settings v2
-- Uvicorn
-- UV (Python package manager)
-
-## AI
-
-- OpenRouter
-- LLM Fallback Engine
-- Model Registry
-- Retry Strategy
-- Recommendation Cache
-
-## Audio Processing
-
-- Librosa
-- NumPy
-- SciPy
-- SoundFile
-
-## Quality
-
-- Pytest / Pytest-cov
-- Ruff (linter + formatter)
-- MyPy (strict mode)
-- Pre-commit hooks
-- GitHub Actions
+| Category | Technology |
+|---|---|
+| **Frontend** | Next.js 16, React 19, TypeScript, Tailwind CSS, Framer Motion, Recharts, Lucide Icons |
+| **Backend** | Python 3.13, FastAPI, Pydantic / Pydantic Settings v2, Uvicorn, UV |
+| **AI** | OpenRouter, LLM Fallback Engine, Model Registry, Retry Strategy, Recommendation Cache |
+| **Audio Processing** | Librosa, NumPy, SciPy, SoundFile |
+| **Quality** | Pytest / Pytest-cov, Ruff, MyPy (strict mode), Pre-commit hooks, GitHub Actions |
 
 ---
 
@@ -493,29 +460,6 @@ Infraestrutura
 Monitoramento
 Deploy
 Escalabilidade
-
-# Academic Context
-
-This project is being developed for the course:
-
-**DCC082 – Sistemas Multimídia**
-
-Federal University of Juiz de Fora (UFJF)
-
-The goal is to demonstrate the integration of multimedia techniques, digital audio processing and modern software engineering practices.
-
----
-
-# Contributing
-
-Contributions are welcome.
-
-Before contributing:
-
-- Follow the coding standards.
-- Run all tests.
-- Execute pre-commit hooks.
-- Open a Pull Request.
 
 ---
 
