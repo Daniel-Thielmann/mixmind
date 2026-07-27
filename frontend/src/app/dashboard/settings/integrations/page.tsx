@@ -1,10 +1,9 @@
-import { headers } from "next/headers";
 import { redirect } from "next/navigation";
-import { auth } from "@/lib/auth";
+import { getServerSession } from "@/lib/auth";
 import { SpotifyIntegrationCard } from "@/components/auth/SpotifyIntegrationCard";
 
 export default async function IntegrationsPage() {
-  const session = await auth.api.getSession({ headers: await headers() });
+  const session = await getServerSession();
   if (!session?.user) redirect("/");
   return (
     <div className="flex-1 pb-12 pt-24">

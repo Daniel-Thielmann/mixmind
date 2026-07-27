@@ -1,0 +1,10 @@
+{
+  "success": true,
+  "data": {
+    "downloadLink": "https://cdn.example.com/spotify/download/abc123.mp3",
+    "title": "Blinding Lights",
+    "artist": "The Weeknd",
+    "album": "After Hours",
+    "cover": "https://i.scdn.co/image/abc123cover.jpg"
+  }
+}

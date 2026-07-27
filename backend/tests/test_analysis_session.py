@@ -507,6 +507,14 @@ class TestPublicUrls:
             lambda _a, _b: expected,
         )
 
+        from app.api.dependencies import get_analysis_owner_id
+
+        monkeypatch.setitem(
+            app.dependency_overrides,
+            get_analysis_owner_id,
+            lambda: "anonymous",
+        )
+
         client = TestClient(app)
         response = client.post(
             "/api/v1/analysis/analyze",

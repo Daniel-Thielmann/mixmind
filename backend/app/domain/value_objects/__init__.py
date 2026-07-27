@@ -1,3 +1,4 @@
+from app.domain.value_objects.acquired_audio import AcquiredAudio
 from app.domain.value_objects.bpm import BPM
 from app.domain.value_objects.camelot_key import CamelotKey
 from app.domain.value_objects.compatibility import CompatibilityResult
@@ -14,6 +15,7 @@ from app.domain.value_objects.identifiers import (
     TrackId,
 )
 from app.domain.value_objects.mix_difficulty import MixDifficulty
+from app.domain.value_objects.spotify_track import SpotifyTrackMetadata
 from app.domain.value_objects.visualization import (
     SpectrogramResult,
     Spectrograms,
@@ -23,6 +25,7 @@ from app.domain.value_objects.visualization import (
 
 __all__ = [
     "BPM",
+    "AcquiredAudio",
     "AnalysisId",
     "CamelotKey",
     "CompatibilityResult",
@@ -37,6 +40,7 @@ __all__ = [
     "RecommendationId",
     "SpectrogramResult",
     "Spectrograms",
+    "SpotifyTrackMetadata",
     "TrackId",
     "WaveformResult",
     "Waveforms",

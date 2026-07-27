@@ -7,7 +7,7 @@ export function UploadSection() {
   return (
     <section id="analyzer" className="relative overflow-hidden py-24 md:py-28">
       <div className="pointer-events-none absolute inset-0">
-        <div className="absolute left-1/2 top-0 h-[400px] w-[400px] -translate-x-1/2 rounded-full bg-primary/5 blur-3xl" />
+        <div className="absolute left-1/2 top-0 h-100 w-100 -translate-x-1/2 rounded-full bg-primary/5 blur-3xl" />
       </div>
 
       <div className="relative mx-auto max-w-7xl px-6">
@@ -16,7 +16,7 @@ export function UploadSection() {
           whileInView={{ opacity: 1, y: 0 }}
           viewport={{ once: true }}
           transition={{ duration: 0.5 }}
-          className="mx-auto max-w-4xl overflow-hidden rounded-[2rem] border border-primary/20 bg-card/70 px-6 py-14 text-center shadow-2xl shadow-primary/5 backdrop-blur-xl md:px-16 md:py-20"
+          className="mx-auto max-w-4xl overflow-hidden rounded-4xl border border-primary/20 bg-card/70 px-6 py-14 text-center shadow-2xl shadow-primary/5 backdrop-blur-xl md:px-16 md:py-20"
         >
           <div className="mx-auto mb-7 flex h-14 w-14 items-center justify-center rounded-2xl border border-primary/20 bg-primary/10 text-primary">
             <AudioLines size={25} />
@@ -26,7 +26,7 @@ export function UploadSection() {
           </span>
           <h2 className="text-3xl font-bold tracking-tight md:text-5xl">
             MixMind{" "}
-            <span className="bg-gradient-to-r from-primary to-accent-blue bg-clip-text text-transparent">
+            <span className="bg-linear-to-r from-primary to-accent-blue bg-clip-text text-transparent">
               Analyzer
             </span>
           </h2>

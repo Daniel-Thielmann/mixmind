@@ -2,6 +2,7 @@
 
 import { useState } from "react";
 import { motion, AnimatePresence } from "framer-motion";
+import { useRouter } from "next/navigation";
 import { useAuth } from "@/hooks/useAuth";
 import {
   Dialog,
@@ -12,6 +13,7 @@ import {
 } from "@/components/ui/dialog";
 import { GoogleButton } from "./GoogleButton";
 import { GitHubButton } from "./GitHubButton";
+import { Mail, Lock, Loader2 } from "lucide-react";
 
 interface AuthDialogProps {
   open: boolean;
@@ -36,9 +38,13 @@ const itemVariants = {
 };
 
 export function AuthDialog({ open, onOpenChange }: AuthDialogProps) {
-  const { signInGoogle, signInGithub } = useAuth();
-  const [loading, setLoading] = useState<"google" | "github" | null>(null);
+  const { signInGoogle, signInGithub, signInEmail } = useAuth();
+  const router = useRouter();
+  const [loading, setLoading] = useState<"google" | "github" | "email" | null>(null);
   const [error, setError] = useState<string | null>(null);
+  const [email, setEmail] = useState("");
+  const [password, setPassword] = useState("");
+  const [seeding, setSeeding] = useState(false);
 
   const signInFns = {
     google: signInGoogle,
@@ -55,6 +61,36 @@ export function AuthDialog({ open, onOpenChange }: AuthDialogProps) {
         signInError instanceof Error
           ? signInError.message
           : "Sign-in is unavailable. Check the provider configuration.",
+      );
+    } finally {
+      setLoading(null);
+    }
+  };
+
+  const handleEmailSignIn = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setLoading("email");
+    setError(null);
+    if (!seeding) {
+      setSeeding(true);
+      try {
+        await fetch("/api/auth/seed", { method: "POST" });
+      } catch { /* ignore seed errors */ }
+    }
+    try {
+      const err = await signInEmail(email.trim(), password);
+      if (err) {
+        setError(err);
+        setLoading(null);
+        return;
+      }
+      onOpenChange(false);
+      router.push("/dashboard");
+    } catch (signInError) {
+      setError(
+        signInError instanceof Error
+          ? signInError.message
+          : "Sign-in failed.",
       );
     } finally {
       setLoading(null);
@@ -102,6 +138,51 @@ export function AuthDialog({ open, onOpenChange }: AuthDialogProps) {
                     {error}
                   </p>
                 ) : null}
+              </motion.div>
+
+              <motion.div variants={itemVariants} className="w-full">
+                <div className="relative my-2">
+                  <div className="absolute inset-0 flex items-center">
+                    <span className="w-full border-t border-border/50" />
+                  </div>
+                  <div className="relative flex justify-center text-xs">
+                    <span className="bg-card px-2 text-text-tertiary">or continue with email</span>
+                  </div>
+                </div>
+                <form onSubmit={handleEmailSignIn} className="flex flex-col gap-3">
+                  <div className="relative">
+                    <Mail className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-text-tertiary" />
+                    <input
+                      type="email"
+                      placeholder="Email"
+                      value={email}
+                      onChange={(e) => setEmail(e.target.value)}
+                      className="w-full rounded-lg border border-border/50 bg-background/50 py-2.5 pl-10 pr-3 text-sm text-text placeholder:text-text-tertiary focus:border-primary/50 focus:outline-hidden"
+                      required
+                    />
+                  </div>
+                  <div className="relative">
+                    <Lock className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-text-tertiary" />
+                    <input
+                      type="password"
+                      placeholder="Password"
+                      value={password}
+                      onChange={(e) => setPassword(e.target.value)}
+                      className="w-full rounded-lg border border-border/50 bg-background/50 py-2.5 pl-10 pr-3 text-sm text-text placeholder:text-text-tertiary focus:border-primary/50 focus:outline-hidden"
+                      required
+                    />
+                  </div>
+                  <button
+                    type="submit"
+                    disabled={loading === "email"}
+                    className="inline-flex items-center justify-center gap-2 rounded-lg bg-primary px-4 py-2.5 text-sm font-medium text-background transition-opacity hover:opacity-90 disabled:opacity-50"
+                  >
+                    {loading === "email" ? (
+                      <Loader2 className="h-4 w-4 animate-spin" />
+                    ) : null}
+                    Sign in with Email
+                  </button>
+                </form>
               </motion.div>
 
               <motion.p

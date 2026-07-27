@@ -1,17 +1,20 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import { motion, AnimatePresence } from "framer-motion";
-import { Upload } from "lucide-react";
+import { Music, Upload, Upload as UploadIcon } from "lucide-react";
 
 import { AuthDialog } from "@/components/auth/AuthDialog";
 import { Dashboard } from "@/components/home/dashboard";
+import { SpotifySelector } from "@/components/spotify/SpotifySelector";
 import { UploadCard } from "@/components/upload/upload-card";
 import { LoadingSpinner } from "@/components/ui/loading-spinner";
 import { SkeletonGrid } from "@/components/ui/Skeleton";
 import { apiService } from "@/services/api";
+import { analyzeSpotifyTracks } from "@/services/spotify-service";
 import { useAuth } from "@/hooks/useAuth";
 import type { UploadAnalysisResponse, UploadStatus } from "@/types";
+import type { SpotifySelectedTrack } from "@/types/spotify";
 
 const FRIENDLY_VALIDATION_MESSAGE =
   "Please select both tracks before analyzing.";
@@ -19,16 +22,24 @@ const FRIENDLY_ERROR_MESSAGE =
   "Unable to analyze the selected tracks. Please try again.";
 
 const STEPS = [
-  { key: "upload", label: "Uploading tracks" },
+  { key: "fetch", label: "Fetching tracks" },
   { key: "process", label: "Processing audio" },
   { key: "ai", label: "AI generating recommendation" },
   { key: "done", label: "Complete" },
 ] as const;
 
+type InputMode = "manual" | "spotify";
+
 export function UploadForm() {
   const { isAuthenticated, loading: authLoading } = useAuth();
+  const [mode, setMode] = useState<InputMode>("manual");
+
   const [trackA, setTrackA] = useState<File>();
   const [trackB, setTrackB] = useState<File>();
+
+  const [spotifyTrackA, setSpotifyTrackA] = useState<SpotifySelectedTrack | null>(null);
+  const [spotifyTrackB, setSpotifyTrackB] = useState<SpotifySelectedTrack | null>(null);
+
   const [status, setStatus] = useState<UploadStatus>("idle");
   const [error, setError] = useState<string | null>(null);
   const [result, setResult] = useState<UploadAnalysisResponse | null>(null);
@@ -48,7 +59,7 @@ export function UploadForm() {
   else if (status === "processing") phase = showAiPhase ? 3 : 2;
   else if (status === "success") phase = 4;
 
-  async function handleAnalyze() {
+  const handleAnalyze = useCallback(async () => {
     if (!isAuthenticated) {
       setResult(null);
       setStatus("error");
@@ -57,36 +68,88 @@ export function UploadForm() {
       return;
     }
 
-    if (!trackA || !trackB) {
+    if (mode === "manual") {
+      if (!trackA || !trackB) {
+        setResult(null);
+        setStatus("error");
+        setError(FRIENDLY_VALIDATION_MESSAGE);
+        return;
+      }
+      setStatus("uploading");
+      setError(null);
       setResult(null);
-      setStatus("error");
-      setError(FRIENDLY_VALIDATION_MESSAGE);
-      return;
+      await new Promise<void>((resolve) => {
+        window.setTimeout(resolve, 0);
+      });
+      try {
+        setStatus("processing");
+        const response = await apiService.analyzeTracks(trackA, trackB);
+        setResult(response);
+        setStatus("success");
+      } catch (requestError) {
+        setResult(null);
+        setStatus("error");
+        setError(
+          requestError instanceof Error
+            ? requestError.message
+            : FRIENDLY_ERROR_MESSAGE,
+        );
+      }
+    } else {
+      if (!spotifyTrackA || !spotifyTrackB) {
+        setResult(null);
+        setStatus("error");
+        setError(FRIENDLY_VALIDATION_MESSAGE);
+        return;
+      }
+      setStatus("uploading");
+      setError(null);
+      setResult(null);
+      await new Promise<void>((resolve) => {
+        window.setTimeout(resolve, 0);
+      });
+      try {
+        setStatus("processing");
+        const response = await analyzeSpotifyTracks({
+          tracks: [
+            { position: "track_a", spotify_track_id: spotifyTrackA.id },
+            { position: "track_b", spotify_track_id: spotifyTrackB.id },
+          ],
+        });
+        setResult(response);
+        setStatus("success");
+      } catch (requestError) {
+        setResult(null);
+        setStatus("error");
+        setError(
+          requestError instanceof Error
+            ? requestError.message
+            : FRIENDLY_ERROR_MESSAGE,
+        );
+      }
     }
+  }, [isAuthenticated, mode, trackA, trackB, spotifyTrackA, spotifyTrackB]);
 
-    setStatus("uploading");
-    setError(null);
-    setResult(null);
-
-    await new Promise<void>((resolve) => {
-      window.setTimeout(resolve, 0);
-    });
-
-    try {
-      setStatus("processing");
-      const response = await apiService.analyzeTracks(trackA, trackB);
-      setResult(response);
-      setStatus("success");
-    } catch (requestError) {
-      setResult(null);
-      setStatus("error");
-      setError(
-        requestError instanceof Error
-          ? requestError.message
-          : FRIENDLY_ERROR_MESSAGE,
-      );
+  function handleSelectSpotifyTrack(track: SpotifySelectedTrack) {
+    if (track.position === "track_a") {
+      setSpotifyTrackA(track);
+    } else {
+      setSpotifyTrackB(track);
     }
   }
+
+  function handleDeselectSpotifyTrack(position: "track_a" | "track_b") {
+    if (position === "track_a") {
+      setSpotifyTrackA(null);
+    } else {
+      setSpotifyTrackB(null);
+    }
+  }
+
+  const canAnalyze =
+    mode === "manual"
+      ? !!trackA && !!trackB
+      : !!spotifyTrackA && !!spotifyTrackB;
 
   return (
     <section className="mt-12 w-full">
@@ -109,22 +172,57 @@ export function UploadForm() {
             exit={{ opacity: 0 }}
             className="rounded-3xl border border-zinc-800 bg-card/65 p-6 shadow-[0_25px_80px_-45px_rgba(0,0,0,1)] backdrop-blur md:p-8"
           >
-            <div className="grid gap-6 lg:grid-cols-2">
-              <UploadCard
-                label="Track A"
-                fileName={trackA?.name}
-                onFile={(file) => setTrackA(file)}
-              />
-              <UploadCard
-                label="Track B"
-                fileName={trackB?.name}
-                onFile={(file) => setTrackB(file)}
-              />
+            <div className="mb-6 flex gap-2">
+              <button
+                onClick={() => setMode("manual")}
+                className={`flex items-center gap-1.5 rounded-lg px-3 py-2 text-xs font-medium transition-all ${
+                  mode === "manual"
+                    ? "bg-primary/15 text-primary"
+                    : "bg-zinc-800/50 text-text-secondary hover:bg-zinc-800"
+                }`}
+              >
+                <UploadIcon className="h-3.5 w-3.5" />
+                Upload from computer
+              </button>
+              <button
+                onClick={() => setMode("spotify")}
+                className={`flex items-center gap-1.5 rounded-lg px-3 py-2 text-xs font-medium transition-all ${
+                  mode === "spotify"
+                    ? "bg-primary/15 text-primary"
+                    : "bg-zinc-800/50 text-text-secondary hover:bg-zinc-800"
+                }`}
+              >
+                <Music className="h-3.5 w-3.5" />
+                Connect Spotify
+              </button>
             </div>
+
+            {mode === "manual" ? (
+              <div className="grid gap-6 lg:grid-cols-2">
+                <UploadCard
+                  label="Track A"
+                  fileName={trackA?.name}
+                  onFile={(file) => setTrackA(file)}
+                />
+                <UploadCard
+                  label="Track B"
+                  fileName={trackB?.name}
+                  onFile={(file) => setTrackB(file)}
+                />
+              </div>
+            ) : (
+              <SpotifySelector
+                selectedTrackA={spotifyTrackA}
+                selectedTrackB={spotifyTrackB}
+                onSelectTrack={handleSelectSpotifyTrack}
+                onDeselectTrack={handleDeselectSpotifyTrack}
+                onBack={() => setMode("manual")}
+              />
+            )}
 
             <button
               onClick={handleAnalyze}
-              disabled={authLoading || (isAuthenticated && (!trackA || !trackB || isBusy))}
+              disabled={authLoading || (isAuthenticated && (!canAnalyze || isBusy))}
               aria-busy={isBusy}
               className="mt-6 flex w-full items-center justify-center gap-2 rounded-xl bg-success px-6 py-4 text-base font-bold text-black transition hover:brightness-110 disabled:cursor-not-allowed disabled:opacity-55"
             >
@@ -203,7 +301,6 @@ export function UploadForm() {
         )}
       </AnimatePresence>
 
-      {/* Skeleton loading while processing */}
       {status === "processing" && (
         <motion.div
           key="skeleton"

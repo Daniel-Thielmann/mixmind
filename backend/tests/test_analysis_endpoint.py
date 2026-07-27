@@ -244,6 +244,14 @@ def test_analyze_tracks_http_response_includes_spectrograms(monkeypatch) -> None
         lambda _track_a, _track_b: expected,
     )
 
+    from app.api.dependencies import get_analysis_owner_id
+
+    monkeypatch.setitem(
+        app.dependency_overrides,
+        get_analysis_owner_id,
+        lambda: "anonymous",
+    )
+
     client = TestClient(app)
     response = client.post(
         "/api/v1/analysis/analyze",

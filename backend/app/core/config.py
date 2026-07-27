@@ -74,7 +74,16 @@ class Settings(BaseSettings):
     SPOTIFY_REDIRECT_URI: str = Field(
         default="http://127.0.0.1:8000/api/v1/integrations/spotify/callback"
     )
-    SPOTIFY_SCOPES: str = Field(default="user-read-private user-read-email")
+    SPOTIFY_SCOPES: str = Field(
+        default="user-read-private user-read-email playlist-read-private user-library-read"
+    )
+
+    RAPIDAPI_KEY: str = Field(default="", repr=False)
+    RAPIDAPI_SPOTIFY_DOWNLOADER_HOST: str = Field(default="")
+    RAPIDAPI_SPOTIFY_DOWNLOADER_BASE_URL: str = Field(default="")
+    RAPIDAPI_DOWNLOAD_TIMEOUT: int = Field(default=60, ge=15, le=300)
+    RAPIDAPI_DOWNLOAD_MAX_SIZE: int = Field(default=200, ge=10, le=500)
+    RAPIDAPI_REQUEST_TIMEOUT: int = Field(default=30, ge=5, le=120)
 
     DEMO_SIGNED_URL_TTL: int = Field(default=3600, ge=300, le=86400)
     DEMO_MANIFEST_CACHE_TTL: int = Field(default=300, ge=0, le=3500)

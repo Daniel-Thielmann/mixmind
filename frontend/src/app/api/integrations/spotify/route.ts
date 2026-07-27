@@ -1,7 +1,6 @@
 import { createHmac } from "node:crypto";
-import { headers } from "next/headers";
 import { NextRequest, NextResponse } from "next/server";
-import { auth } from "@/lib/auth";
+import { getServerSession } from "@/lib/auth";
 
 const BACKEND_URL = (process.env.BACKEND_API_URL ?? process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:8000").replace(/\/$/, "");
 
@@ -19,12 +18,8 @@ function getAuthHeaders(userId: string): Record<string, string> {
   };
 }
 
-async function getSession() {
-  return auth.api.getSession({ headers: await headers() });
-}
-
 export async function GET(request: NextRequest) {
-  const session = await getSession();
+  const session = await getServerSession();
   if (!session?.user) {
     return NextResponse.json({ detail: "Authentication required" }, { status: 401 });
   }
@@ -54,7 +49,7 @@ export async function GET(request: NextRequest) {
 }
 
 export async function DELETE() {
-  const session = await getSession();
+  const session = await getServerSession();
   if (!session?.user) {
     return NextResponse.json({ detail: "Authentication required" }, { status: 401 });
   }
