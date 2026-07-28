@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import logging
+import time
 
 from fastapi import APIRouter, Depends, Query, status
 from fastapi.responses import RedirectResponse
@@ -36,14 +37,14 @@ from app.infrastructure.spotify.extended_api_client import (
 
 logger = logging.getLogger(__name__)
 
-router = APIRouter(prefix="/integrations/spotify", tags=["Integrations"])
+router = APIRouter(tags=["Integrations"])
 
 
 def _get_repository(db: Session) -> SqlAlchemySpotifyConnectionRepository:
     return SqlAlchemySpotifyConnectionRepository(db)
 
 
-def _get_spotify_client(db: Session, user_id: str) -> ExtendedSpotifyApiClient:
+async def _get_spotify_client(db: Session, user_id: str) -> ExtendedSpotifyApiClient:
     repo = _get_repository(db)
     connection = repo.find_by_user_id(user_id)
     if not connection or connection.status == "disconnected":
@@ -59,7 +60,7 @@ def _get_spotify_client(db: Session, user_id: str) -> ExtendedSpotifyApiClient:
     access_token = connection.access_token
     if connection.is_expired:
         refresher = RefreshSpotifyAccessTokenUseCase(repository=repo)
-        refreshed = refresher.execute(user_id)
+        refreshed = await refresher.execute(user_id)
         if not refreshed:
             raise SpotifyAuthenticationError(
                 detail="Your Spotify session has expired. Please reconnect."
@@ -67,6 +68,37 @@ def _get_spotify_client(db: Session, user_id: str) -> ExtendedSpotifyApiClient:
         access_token = refreshed.access_token
 
     return ExtendedSpotifyApiClient(access_token=access_token)
+
+
+async def _call_spotify_with_timing(
+    client: ExtendedSpotifyApiClient,
+    endpoint: str,
+    limit: int,
+    offset: int,
+) -> dict:
+    t0 = time.monotonic()
+    paging = await getattr(client, f"get_{endpoint}")(limit=limit, offset=offset)
+    t1 = time.monotonic()
+
+    result = {
+        "href": paging.href,
+        "items": paging.items,
+        "limit": paging.limit,
+        "next": paging.next,
+        "offset": paging.offset,
+        "previous": paging.previous,
+        "total": paging.total,
+    }
+
+    logger.info(
+        "spotify_%s_timing | spotify_request_ms=%.0f | limit=%d | offset=%d | total=%d",
+        endpoint,
+        (t1 - t0) * 1000,
+        limit,
+        offset,
+        paging.total,
+    )
+    return result
 
 
 @router.get("/status", response_model=SpotifyConnectionStatusResponse)
@@ -92,14 +124,14 @@ def connect(
 
 
 @router.get("/callback")
-def callback(
+async def callback(
     db: DatabaseSession,
     code: str | None = Query(default=None),
     state: str | None = Query(default=None),
     error: str | None = Query(default=None),
 ) -> RedirectResponse:
     frontend_url = settings.FRONTEND_URL or "http://127.0.0.1:3000"
-    redirect_to = f"{frontend_url}/dashboard/settings/integrations"
+    redirect_to = f"{frontend_url}/dashboard"
 
     if not state:
         return RedirectResponse(
@@ -110,7 +142,7 @@ def callback(
     use_case = CompleteSpotifyConnectionUseCase(
         repository=_get_repository(db),
     )
-    connection, err_msg = use_case.execute(
+    connection, err_msg = await use_case.execute(
         code=code,
         state=state,
         error=error,
@@ -169,17 +201,9 @@ async def get_spotify_playlists(
     offset: int = Query(default=0, ge=0),
     user_id: str = Depends(get_current_owner_id),
 ) -> SpotifyPagingResponse:
-    client = _get_spotify_client(db, user_id)
-    paging = await client.get_user_playlists(limit=limit, offset=offset)
-    return SpotifyPagingResponse(
-        href=paging.href,
-        items=paging.items,
-        limit=paging.limit,
-        next=paging.next,
-        offset=paging.offset,
-        previous=paging.previous,
-        total=paging.total,
-    )
+    client = await _get_spotify_client(db, user_id)
+    result = await _call_spotify_with_timing(client, "user_playlists", limit, offset)
+    return SpotifyPagingResponse(**result)
 
 
 @router.get("/playlists/{playlist_id}/tracks")
@@ -190,9 +214,17 @@ async def get_playlist_tracks(
     offset: int = Query(default=0, ge=0),
     user_id: str = Depends(get_current_owner_id),
 ) -> SpotifyPagingResponse:
-    client = _get_spotify_client(db, user_id)
+    client = await _get_spotify_client(db, user_id)
+    t0 = time.monotonic()
     paging = await client.get_playlist_tracks(
         playlist_id=playlist_id, limit=limit, offset=offset
+    )
+    logger.info(
+        "spotify_playlist_tracks_timing | spotify_request_ms=%.0f | limit=%d | offset=%d | total=%d",
+        (time.monotonic() - t0) * 1000,
+        limit,
+        offset,
+        paging.total,
     )
     return SpotifyPagingResponse(
         href=paging.href,
@@ -212,28 +244,20 @@ async def get_saved_tracks(
     offset: int = Query(default=0, ge=0),
     user_id: str = Depends(get_current_owner_id),
 ) -> SpotifyPagingResponse:
-    client = _get_spotify_client(db, user_id)
-    paging = await client.get_saved_tracks(limit=limit, offset=offset)
-    return SpotifyPagingResponse(
-        href=paging.href,
-        items=paging.items,
-        limit=paging.limit,
-        next=paging.next,
-        offset=paging.offset,
-        previous=paging.previous,
-        total=paging.total,
-    )
+    client = await _get_spotify_client(db, user_id)
+    result = await _call_spotify_with_timing(client, "saved_tracks", limit, offset)
+    return SpotifyPagingResponse(**result)
 
 
 @router.get("/search")
 async def search_spotify_tracks(
     db: DatabaseSession,
     q: str = Query(min_length=1, max_length=200),
-    limit: int = Query(default=10, ge=1, le=50),
+    limit: int = Query(default=10, ge=1, le=10),
     offset: int = Query(default=0, ge=0),
     user_id: str = Depends(get_current_owner_id),
 ) -> SpotifyPagingResponse:
-    client = _get_spotify_client(db, user_id)
+    client = await _get_spotify_client(db, user_id)
     paging = await client.search_tracks(query=q, limit=limit, offset=offset)
     return SpotifyPagingResponse(
         href=paging.href,

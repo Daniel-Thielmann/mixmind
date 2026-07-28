@@ -75,7 +75,7 @@ class Settings(BaseSettings):
         default="http://127.0.0.1:8000/api/v1/integrations/spotify/callback"
     )
     SPOTIFY_SCOPES: str = Field(
-        default="user-read-private user-read-email playlist-read-private user-library-read"
+        default="user-read-private user-read-email playlist-read-private playlist-read-collaborative user-library-read"
     )
 
     RAPIDAPI_KEY: str = Field(default="", repr=False)

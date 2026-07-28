@@ -1,8 +1,10 @@
 from __future__ import annotations
 
+import asyncio
 import logging
 import time
 from datetime import UTC, datetime
+from typing import ClassVar
 
 from app.domain.entities.spotify_connection import SpotifyConnection
 from app.domain.repositories.spotify_connection_repository import (
@@ -17,6 +19,8 @@ logger = logging.getLogger(__name__)
 
 
 class RefreshSpotifyAccessTokenUseCase:
+    _refresh_locks: ClassVar[dict[str, asyncio.Lock]] = {}
+
     def __init__(
         self,
         oauth_client: SpotifyOAuthClient | None = None,
@@ -28,10 +32,20 @@ class RefreshSpotifyAccessTokenUseCase:
     def set_repository(self, repository: SpotifyConnectionRepository) -> None:
         self._repository = repository
 
-    def execute(self, user_id: str) -> SpotifyConnection | None:
+    @classmethod
+    def _get_user_lock(cls, user_id: str) -> asyncio.Lock:
+        if user_id not in cls._refresh_locks:
+            cls._refresh_locks[user_id] = asyncio.Lock()
+        return cls._refresh_locks[user_id]
+
+    async def execute(self, user_id: str) -> SpotifyConnection | None:
         if not self._repository:
             return None
 
+        async with self._get_user_lock(user_id):
+            return await self._execute_refresh(user_id)
+
+    async def _execute_refresh(self, user_id: str) -> SpotifyConnection | None:
         connection = self._repository.find_by_user_id(user_id)
         if not connection:
             return None
@@ -49,7 +63,9 @@ class RefreshSpotifyAccessTokenUseCase:
             return None
 
         try:
-            token_response = self._oauth.refresh_access_token(connection.refresh_token)
+            token_response = await self._oauth.refresh_access_token(
+                connection.refresh_token
+            )
         except SpotifyGrantError as exc:
             if exc.error == "invalid_grant":
                 logger.warning(

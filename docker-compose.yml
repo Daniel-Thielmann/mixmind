@@ -25,6 +25,7 @@ services:
       - ENVIRONMENT=${ENVIRONMENT:-development}
       - DATABASE_URL=postgresql+psycopg://postgres:postgres@postgres:5432/mixmind
       - INTERNAL_AUTH_SECRET=${INTERNAL_AUTH_SECRET:-development-only-change-me}
+
     volumes:
       - uploads-data:/app/uploads
       - processed-data:/app/processed

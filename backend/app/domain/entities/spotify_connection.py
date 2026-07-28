@@ -26,7 +26,7 @@ class SpotifyConnection:
     def is_expired(self) -> bool:
         import time
 
-        return time.time() >= self.expires_at
+        return time.time() + 120 >= self.expires_at
 
     @property
     def scopes_list(self) -> list[str]:

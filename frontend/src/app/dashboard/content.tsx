@@ -4,6 +4,7 @@ import { useEffect, useState } from "react";
 import { motion } from "framer-motion";
 import { useAuth } from "@/hooks/useAuth";
 import { BarChart3, Music, Activity, Sparkles, RefreshCw } from "lucide-react";
+import { SpotifyLibrary } from "@/components/spotify/SpotifyLibrary";
 
 interface RecentTrack {
   id: string;
@@ -81,6 +82,10 @@ export function DashboardContent() {
               <StatCard label="Analyses" value={summary.analyses_count} icon={BarChart3} />
               <StatCard label="Tracks" value={summary.tracks_count} icon={Music} />
             </div>
+
+            <section className="mt-12">
+              <SpotifyLibrary />
+            </section>
 
             <section className="mt-12 rounded-xl border border-border/50 bg-card/50 p-6 backdrop-blur-sm">
               <div className="flex items-center justify-between">

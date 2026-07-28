@@ -50,9 +50,19 @@ class RapidApiSpotifyDownloaderProvider:
 
     def acquire(self, track_metadata: SpotifyTrackMetadata) -> AcquiredAudio:
         if not self._api_key or not self._api_host or not self._base_url:
-            raise AudioProviderUnavailableError(
-                detail="RapidAPI is not configured. Set RAPIDAPI_KEY and related variables."
+            missing = [
+                k
+                for k, v in [
+                    ("RAPIDAPI_KEY", self._api_key),
+                    ("RAPIDAPI_SPOTIFY_DOWNLOADER_HOST", self._api_host),
+                    ("RAPIDAPI_SPOTIFY_DOWNLOADER_BASE_URL", self._base_url),
+                ]
+                if not v
+            ]
+            logger.error(
+                "RapidAPI configuration incomplete: missing %s", ", ".join(missing)
             )
+            raise AudioProviderUnavailableError()
 
         download_url = self._request_download_url(track_metadata.spotify_id)
         return self._download_file(download_url, track_metadata)

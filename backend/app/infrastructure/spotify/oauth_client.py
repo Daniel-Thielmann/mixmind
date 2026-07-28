@@ -50,33 +50,33 @@ class SpotifyOAuthClient:
 
         return f"{self.AUTHORIZE_URL}?{urlencode(params)}"
 
-    def exchange_code(self, code: str) -> SpotifyTokenResponse:
+    async def exchange_code(self, code: str) -> SpotifyTokenResponse:
         data = {
             "grant_type": "authorization_code",
             "code": code,
             "redirect_uri": self._redirect_uri,
         }
-        return self._post_token(data)
+        return await self._post_token(data)
 
-    def refresh_access_token(self, refresh_token: str) -> SpotifyTokenResponse:
+    async def refresh_access_token(self, refresh_token: str) -> SpotifyTokenResponse:
         data = {
             "grant_type": "refresh_token",
             "refresh_token": refresh_token,
         }
-        return self._post_token(data)
+        return await self._post_token(data)
 
-    def _post_token(self, data: dict[str, str]) -> SpotifyTokenResponse:
+    async def _post_token(self, data: dict[str, str]) -> SpotifyTokenResponse:
         auth = httpx.BasicAuth(
             username=self._client_id,
             password=self._client_secret,
         )
-        response = httpx.post(
-            self.TOKEN_URL,
-            data=data,
-            auth=auth,
-            headers={"Content-Type": "application/x-www-form-urlencoded"},
-            timeout=30,
-        )
+        async with httpx.AsyncClient(timeout=30) as client:
+            response = await client.post(
+                self.TOKEN_URL,
+                data=data,
+                auth=auth,
+                headers={"Content-Type": "application/x-www-form-urlencoded"},
+            )
         if response.status_code == 400:
             payload: dict[str, Any] = response.json()
             error = payload.get("error", "invalid_request")

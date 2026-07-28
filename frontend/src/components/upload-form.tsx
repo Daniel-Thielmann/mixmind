@@ -10,6 +10,7 @@ import { SpotifySelector } from "@/components/spotify/SpotifySelector";
 import { UploadCard } from "@/components/upload/upload-card";
 import { LoadingSpinner } from "@/components/ui/loading-spinner";
 import { SkeletonGrid } from "@/components/ui/Skeleton";
+import { loadSpotifyTracks, clearSpotifyTracks } from "@/lib/spotify-storage";
 import { apiService } from "@/services/api";
 import { analyzeSpotifyTracks } from "@/services/spotify-service";
 import { useAuth } from "@/hooks/useAuth";
@@ -47,6 +48,17 @@ export function UploadForm() {
   const [authOpen, setAuthOpen] = useState(false);
 
   const isBusy = status === "uploading" || status === "processing";
+
+  useEffect(() => {
+    const params = new URLSearchParams(window.location.search);
+    if (params.get("spotify") !== "1") return;
+    const stored = loadSpotifyTracks();
+    if (!stored) return;
+    setMode("spotify");
+    setSpotifyTrackA(stored.trackA);
+    setSpotifyTrackB(stored.trackB);
+    clearSpotifyTracks();
+  }, []);
 
   useEffect(() => {
     if (status !== "processing") return;
@@ -105,6 +117,7 @@ export function UploadForm() {
       setStatus("uploading");
       setError(null);
       setResult(null);
+      clearSpotifyTracks();
       await new Promise<void>((resolve) => {
         window.setTimeout(resolve, 0);
       });
@@ -220,26 +233,41 @@ export function UploadForm() {
               />
             )}
 
-            <button
-              onClick={handleAnalyze}
-              disabled={authLoading || (isAuthenticated && (!canAnalyze || isBusy))}
-              aria-busy={isBusy}
-              className="mt-6 flex w-full items-center justify-center gap-2 rounded-xl bg-success px-6 py-4 text-base font-bold text-black transition hover:brightness-110 disabled:cursor-not-allowed disabled:opacity-55"
-            >
-              {!isAuthenticated ? (
-                <>Sign in to analyze</>
-              ) : isBusy ? (
-                <>
-                  <LoadingSpinner />
-                  {STEPS[phase - 1]?.label ?? "Working..."}
-                </>
-              ) : (
-                <>
-                  <Upload className="h-5 w-5" />
-                  Analyze Tracks
-                </>
-              )}
-            </button>
+            {isAuthenticated && !canAnalyze && !isBusy ? (
+              <div className="mt-6 flex w-full items-center justify-center gap-2 rounded-xl bg-zinc-800/50 px-6 py-4 text-sm font-medium text-text-secondary/60">
+                <Music className="h-4 w-4" />
+                {!spotifyTrackA && !spotifyTrackB
+                  ? "Select Track A and Track B to analyze"
+                  : !spotifyTrackA
+                    ? "Select Track A to continue"
+                    : "Select Track B to continue"}
+              </div>
+            ) : (
+              <button
+                onClick={handleAnalyze}
+                disabled={authLoading || !isAuthenticated || isBusy}
+                aria-busy={isBusy}
+                className={`mt-6 flex w-full items-center justify-center gap-2 rounded-xl px-6 py-4 text-base font-bold transition-all ${
+                  !isAuthenticated
+                    ? "bg-primary/50 text-background hover:brightness-110"
+                    : "bg-success text-black hover:brightness-110 disabled:cursor-not-allowed disabled:opacity-40"
+                }`}
+              >
+                {!isAuthenticated ? (
+                  <>Sign in to analyze</>
+                ) : isBusy ? (
+                  <>
+                    <LoadingSpinner />
+                    {STEPS[phase - 1]?.label ?? "Working..."}
+                  </>
+                ) : (
+                  <>
+                    <Upload className="h-5 w-5" />
+                    Analyze Tracks
+                  </>
+                )}
+              </button>
+            )}
 
             {isBusy && (
               <div className="mt-5 flex items-center justify-center gap-2">

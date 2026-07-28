@@ -35,7 +35,9 @@ async def health_check() -> JSONResponse:
 api_router.include_router(analysis_router, prefix="/analysis", tags=["Analysis"])
 api_router.include_router(ai_router, prefix="/ai", tags=["AI"])
 api_router.include_router(demo_router, prefix="/demo", tags=["Demonstration"])
-api_router.include_router(spotify_router, prefix="/integrations", tags=["Integrations"])
+api_router.include_router(
+    spotify_router, prefix="/integrations/spotify", tags=["Integrations"]
+)
 api_router.include_router(
     spotify_analysis_router, prefix="/analysis", tags=["Analysis"]
 )

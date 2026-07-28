@@ -104,7 +104,52 @@ class TestSpotifyTrackMetadata:
         assert safe.endswith(".mp3")
 
 
+class TestSpotifyConfig:
+    def test_defaults_are_empty_when_not_set(self) -> None:
+        from app.core.config import Settings
+
+        s = Settings(
+            _env_file=None,
+            _env_file_encoding=None,
+        )
+        assert s.RAPIDAPI_KEY == ""
+        assert s.RAPIDAPI_SPOTIFY_DOWNLOADER_HOST == ""
+        assert s.RAPIDAPI_SPOTIFY_DOWNLOADER_BASE_URL == ""
+
+    def test_rapidapi_vars_loaded_from_env(self) -> None:
+        import os
+
+        os.environ.setdefault("RAPIDAPI_KEY", "test_key_123")
+        os.environ.setdefault(
+            "RAPIDAPI_SPOTIFY_DOWNLOADER_HOST", "test-host.p.rapidapi.com"
+        )
+        os.environ.setdefault(
+            "RAPIDAPI_SPOTIFY_DOWNLOADER_BASE_URL", "https://test-host.p.rapidapi.com"
+        )
+        from app.core.config import Settings
+
+        s = Settings()
+        assert s.RAPIDAPI_KEY == "test_key_123"
+        assert s.RAPIDAPI_SPOTIFY_DOWNLOADER_HOST == "test-host.p.rapidapi.com"
+        assert (
+            s.RAPIDAPI_SPOTIFY_DOWNLOADER_BASE_URL == "https://test-host.p.rapidapi.com"
+        )
+
+
 class TestRapidApiDownloader:
+    @pytest.fixture(autouse=True)
+    def _clear_rapidapi_settings(self, monkeypatch: pytest.MonkeyPatch) -> None:
+        from app.infrastructure.spotify.rapidapi_downloader import (
+            settings as rd_settings,
+        )
+
+        monkeypatch.setattr(rd_settings, "RAPIDAPI_KEY", "")
+        monkeypatch.setattr(rd_settings, "RAPIDAPI_SPOTIFY_DOWNLOADER_HOST", "")
+        monkeypatch.setattr(rd_settings, "RAPIDAPI_SPOTIFY_DOWNLOADER_BASE_URL", "")
+        monkeypatch.setattr(rd_settings, "RAPIDAPI_DOWNLOAD_TIMEOUT", 30)
+        monkeypatch.setattr(rd_settings, "RAPIDAPI_REQUEST_TIMEOUT", 15)
+        monkeypatch.setattr(rd_settings, "RAPIDAPI_DOWNLOAD_MAX_SIZE", 200)
+
     @pytest.fixture
     def track_meta(self) -> SpotifyTrackMetadata:
         return SpotifyTrackMetadata(
@@ -124,13 +169,68 @@ class TestRapidApiDownloader:
         )
 
         downloader = RapidApiSpotifyDownloaderProvider(
-            api_key="",
-            api_host="",
-            base_url="",
             temp_dir=Path("/tmp"),
         )
         with pytest.raises(AudioProviderUnavailableError):
             downloader.acquire(track_meta)
+
+    def test_missing_config_uses_friendly_message(
+        self, track_meta: SpotifyTrackMetadata
+    ) -> None:
+        from app.infrastructure.spotify.rapidapi_downloader import (
+            RapidApiSpotifyDownloaderProvider,
+        )
+
+        downloader = RapidApiSpotifyDownloaderProvider(
+            temp_dir=Path("/tmp"),
+        )
+        with pytest.raises(AudioProviderUnavailableError) as exc_info:
+            downloader.acquire(track_meta)
+        assert "RapidAPI" not in exc_info.value.detail
+        assert "temporarily unavailable" in exc_info.value.detail.lower()
+
+    def test_partial_config_still_fails(self, track_meta: SpotifyTrackMetadata) -> None:
+        from app.infrastructure.spotify.rapidapi_downloader import (
+            RapidApiSpotifyDownloaderProvider,
+        )
+
+        downloader = RapidApiSpotifyDownloaderProvider(
+            api_key="valid_key",
+            api_host="",
+            base_url="https://valid.url",
+            temp_dir=Path("/tmp"),
+        )
+        with pytest.raises(AudioProviderUnavailableError):
+            downloader.acquire(track_meta)
+
+    def test_configured_provider_passes_config_to_requests(
+        self, track_meta: SpotifyTrackMetadata
+    ) -> None:
+        from unittest.mock import patch
+
+        from app.infrastructure.spotify.rapidapi_downloader import (
+            RapidApiSpotifyDownloaderProvider,
+        )
+
+        downloader = RapidApiSpotifyDownloaderProvider(
+            api_key="test_key_abc",
+            api_host="test-host.p.rapidapi.com",
+            base_url="https://test-host.p.rapidapi.com",
+            temp_dir=Path("/tmp"),
+        )
+        mock_acquired = AcquiredAudio(
+            local_path=Path("/tmp/test.mp3"),
+            mime_type="audio/mpeg",
+            provider="test",
+            temporary=True,
+        )
+        with patch.object(downloader, "_request_download_url") as mock_request:
+            with patch.object(downloader, "_download_file") as mock_download:
+                mock_request.return_value = "https://cdn.example.com/audio.mp3"
+                mock_download.return_value = mock_acquired
+                result = downloader.acquire(track_meta)
+                mock_request.assert_called_once_with("abc123")
+                assert result is mock_acquired
 
     def test_validate_download_url_rejects_invalid_scheme(self, tmp_path: Path) -> None:
         from app.infrastructure.spotify.rapidapi_downloader import (

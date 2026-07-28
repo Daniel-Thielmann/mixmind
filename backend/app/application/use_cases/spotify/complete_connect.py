@@ -32,7 +32,7 @@ class CompleteSpotifyConnectionUseCase:
         self._repository = repository
         self._state_service.set_repository(repository)
 
-    def execute(
+    async def execute(
         self,
         code: str | None,
         state: str,
@@ -51,7 +51,7 @@ class CompleteSpotifyConnectionUseCase:
             return None, "Invalid or expired state. Please try connecting again."
 
         try:
-            token_response = self._oauth.exchange_code(code)
+            token_response = await self._oauth.exchange_code(code)
         except Exception:
             logger.error("Failed to exchange authorization code")
             return None, "Failed to complete authorization with Spotify."

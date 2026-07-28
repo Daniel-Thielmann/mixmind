@@ -27,9 +27,11 @@ export interface SpotifyPlaylistSummary {
   name: string;
   description: string;
   images: { url: string }[];
-  tracks: { total: number };
-  owner: { display_name: string };
+  tracks?: { total: number };
+  items?: { total: number; items?: Record<string, unknown>[] };
+  owner: { display_name: string; id: string };
   snapshot_id: string;
+  collaborative: boolean;
 }
 
 export interface SpotifySelectedTrack {

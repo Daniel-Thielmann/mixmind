@@ -8,7 +8,11 @@ import httpx
 
 from app.core.exceptions import (
     SpotifyApiError,
+    SpotifyApiUnavailableError,
     SpotifyAuthenticationError,
+    SpotifyBadRequestError,
+    SpotifyPlaylistForbiddenError,
+    SpotifyRateLimitError,
     SpotifyTrackNotFoundError,
 )
 from app.domain.value_objects.spotify_track import SpotifyTrackMetadata
@@ -52,6 +56,19 @@ class SpotifyTrackSummary:
     isrc: str | None = None
 
 
+_shared_client: httpx.AsyncClient | None = None
+
+
+def _get_shared_client() -> httpx.AsyncClient:
+    global _shared_client
+    if _shared_client is None:
+        _shared_client = httpx.AsyncClient(
+            timeout=httpx.Timeout(connect=10.0, read=25.0, write=30.0, pool=10.0),
+            limits=httpx.Limits(max_keepalive_connections=10, max_connections=20),
+        )
+    return _shared_client
+
+
 class ExtendedSpotifyApiClient:
     def __init__(self, access_token: str) -> None:
         self._access_token = access_token
@@ -85,7 +102,7 @@ class ExtendedSpotifyApiClient:
         self, playlist_id: str, limit: int = 50, offset: int = 0
     ) -> SpotifyPaging:
         data = await self._get(
-            f"/playlists/{playlist_id}/tracks?limit={limit}&offset={offset}"
+            f"/playlists/{playlist_id}/items?limit={limit}&offset={offset}"
         )
         return self._parse_paging(data)
 
@@ -96,33 +113,78 @@ class ExtendedSpotifyApiClient:
     async def search_tracks(
         self, query: str, limit: int = 10, offset: int = 0
     ) -> SpotifyPaging:
-        from urllib.parse import quote
+        import urllib.parse
 
-        encoded = quote(query)
-        data = await self._get(
-            f"/search?q={encoded}&type=track&limit={limit}&offset={offset}"
-        )
+        clamped = max(1, min(limit, 10))
+        safe_offset = max(0, offset)
+        params = {
+            "q": query,
+            "type": "track",
+            "limit": str(clamped),
+            "offset": str(safe_offset),
+        }
+        query_string = urllib.parse.urlencode(params)
+        data = await self._get(f"/search?{query_string}")
         tracks_data: dict[str, Any] = data.get("tracks", {})
         return self._parse_paging(tracks_data)
 
     async def _get(self, path: str) -> dict[str, Any]:
         url = f"{SPOTIFY_API_BASE}{path}"
         headers = self._headers()
-        async with httpx.AsyncClient(timeout=30) as client:
-            response = await client.get(url, headers=headers)
+        client = _get_shared_client()
+        response = await client.get(url, headers=headers)
+        if response.status_code == 200:
+            return response.json()
+        self._handle_error_response(response, path)
+
+    def _handle_error_response(self, response: httpx.Response, path: str) -> None:
+        spotify_error_body: dict[str, Any] | None = None
+        try:
+            spotify_error_body = response.json()
+        except Exception:
+            pass
+
+        safe_path = path.split("?")[0]
+        safe_params: dict[str, str] = {}
+        if "?" in path:
+            query_part = path.split("?", 1)[1]
+            for pair in query_part.split("&"):
+                if "=" in pair:
+                    k, v = pair.split("=", 1)
+                    if k == "q":
+                        safe_params[k] = v[:20] + "..." if len(v) > 20 else v
+                    else:
+                        safe_params[k] = v
+
+        error_msg = "unknown"
+        if spotify_error_body:
+            error_obj = spotify_error_body.get("error")
+            if isinstance(error_obj, dict):
+                error_msg = error_obj.get("message", str(spotify_error_body))
+
+        logger.warning(
+            "Spotify API error | method=GET | path=%s | status=%d | params=%s | spotify_error=%s",
+            safe_path,
+            response.status_code,
+            safe_params,
+            error_msg,
+        )
+
+        if response.status_code == 400:
+            raise SpotifyBadRequestError(spotify_response=spotify_error_body)
         if response.status_code == 401:
             raise SpotifyAuthenticationError()
+        if response.status_code == 403:
+            raise SpotifyPlaylistForbiddenError()
         if response.status_code == 404:
             raise SpotifyTrackNotFoundError()
         if response.status_code == 429:
-            logger.warning("Spotify API rate limit hit on %s", path)
-            raise SpotifyApiError(detail="Spotify API rate limit exceeded.")
-        if response.status_code >= 400:
-            logger.error("Spotify API error %d on %s", response.status_code, path)
-            raise SpotifyApiError(
-                detail=f"Spotify API returned status {response.status_code}."
-            )
-        return response.json()
+            raise SpotifyRateLimitError()
+        if 500 <= response.status_code < 600:
+            raise SpotifyApiUnavailableError()
+        raise SpotifyApiError(
+            detail=f"Spotify API returned status {response.status_code}."
+        )
 
     def _headers(self) -> dict[str, str]:
         return {
@@ -180,9 +242,11 @@ class ExtendedSpotifyApiClient:
     @staticmethod
     def extract_track_from_item(item: dict[str, Any]) -> SpotifyTrackSummary | None:
         track: dict[str, Any] | None = None
-        if "track" in item:
+        if "item" in item:
+            track = item["item"]
+        elif "track" in item:
             track = item["track"]
-        elif "track" not in item and "id" in item:
+        elif "id" in item:
             track = item
         if not track or not track.get("id"):
             return None

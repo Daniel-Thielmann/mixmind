@@ -113,7 +113,7 @@ class SqlAlchemySpotifyConnectionRepository(SpotifyConnectionRepository):
             self._db.query(OAuthStateModel)
             .filter(
                 OAuthStateModel.nonce == nonce,
-                not OAuthStateModel.consumed,
+                OAuthStateModel.consumed == False,  # noqa: E712 — SQLAlchemy 2.0 raises TypeError on `not column`
                 OAuthStateModel.expires_at > now,
             )
             .update({"consumed": True})

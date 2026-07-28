@@ -58,7 +58,7 @@ class InvalidMediaFileException(HTTPException):
 class FileTooLargeException(HTTPException):
     def __init__(self) -> None:
         super().__init__(
-            status_code=status.HTTP_413_REQUEST_ENTITY_TOO_LARGE,
+            status_code=status.HTTP_413_CONTENT_TOO_LARGE,
             detail="Uploaded file exceeds maximum allowed size.",
         )
 
@@ -76,6 +76,45 @@ class SpotifyTrackNotFoundError(AppError):
 class SpotifyMetadataError(AppError):
     status_code = status.HTTP_502_BAD_GATEWAY
     detail = "Failed to retrieve track metadata from Spotify."
+
+
+class SpotifyInsufficientScopeError(AppError):
+    status_code = status.HTTP_403_FORBIDDEN
+    detail = "Spotify permissions are outdated. Reconnect your account."
+
+
+class SpotifyPlaylistForbiddenError(AppError):
+    status_code = status.HTTP_403_FORBIDDEN
+    detail = "Spotify API only allows browsing tracks for playlists you own or collaborate on. Followed playlists are not accessible via the API (Spotify policy change, Feb 2026). Search for specific tracks instead."
+
+
+class SpotifyRateLimitError(AppError):
+    status_code = status.HTTP_429_TOO_MANY_REQUESTS
+    detail = "Spotify API rate limit exceeded. Try again later."
+
+
+class SpotifyBadRequestError(AppError):
+    status_code = status.HTTP_502_BAD_GATEWAY
+    detail = "We couldn\u2019t complete this Spotify search. Please try again."
+
+    def __init__(
+        self, detail: str | None = None, *, spotify_response: dict | None = None
+    ) -> None:
+        if detail:
+            super().__init__(detail=detail)
+        else:
+            super().__init__()
+        self.spotify_response = spotify_response
+
+
+class SpotifyForbiddenError(AppError):
+    status_code = status.HTTP_403_FORBIDDEN
+    detail = "Access to this Spotify resource is restricted."
+
+
+class SpotifyApiUnavailableError(AppError):
+    status_code = status.HTTP_502_BAD_GATEWAY
+    detail = "Spotify API is temporarily unavailable. Try again later."
 
 
 class SpotifyApiError(AppError):
@@ -101,7 +140,7 @@ class AudioDownloadTimeoutError(AppError):
 
 
 class AudioDownloadTooLargeError(AppError):
-    status_code = status.HTTP_413_REQUEST_ENTITY_TOO_LARGE
+    status_code = status.HTTP_413_CONTENT_TOO_LARGE
     detail = "Downloaded audio exceeds maximum allowed size."
 
 

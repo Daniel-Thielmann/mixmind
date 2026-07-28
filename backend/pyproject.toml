@@ -170,4 +170,5 @@ source = ["backend/app"]
 [dependency-groups]
 dev = [
     "pre-commit>=4.6.0",
+    "pytest-asyncio>=1.4.0",
 ]

@@ -33,7 +33,7 @@ router = APIRouter()
 _analysis_slot = asyncio.Semaphore(1)
 
 
-def _get_spotify_client(db: Session, user_id: str) -> ExtendedSpotifyApiClient:
+async def _get_spotify_client(db: Session, user_id: str) -> ExtendedSpotifyApiClient:
     repo = SqlAlchemySpotifyConnectionRepository(db)
     connection = repo.find_by_user_id(user_id)
     if not connection or connection.status == "disconnected":
@@ -49,7 +49,7 @@ def _get_spotify_client(db: Session, user_id: str) -> ExtendedSpotifyApiClient:
     access_token = connection.access_token
     if connection.is_expired:
         refresher = RefreshSpotifyAccessTokenUseCase(repository=repo)
-        refreshed = refresher.execute(user_id)
+        refreshed = await refresher.execute(user_id)
         if not refreshed:
             raise SpotifyAuthenticationError(
                 detail="Your Spotify session has expired. Please reconnect."
@@ -76,7 +76,7 @@ async def analyze_spotify_tracks(
             detail="Another analysis is already running. Please try again shortly.",
         )
 
-    spotify_client = _get_spotify_client(db, user_id)
+    spotify_client = await _get_spotify_client(db, user_id)
 
     async with _analysis_slot:
         try:
