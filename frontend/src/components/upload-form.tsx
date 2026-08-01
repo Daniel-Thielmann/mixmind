@@ -2,11 +2,11 @@
 
 import { useCallback, useEffect, useState } from "react";
 import { motion, AnimatePresence } from "framer-motion";
-import { Music, Upload, Upload as UploadIcon } from "lucide-react";
+import { ArrowRight, FileAudio, Music, Upload } from "lucide-react";
 
 import { AuthDialog } from "@/components/auth/AuthDialog";
 import { Dashboard } from "@/components/home/dashboard";
-import { SpotifySelector } from "@/components/spotify/SpotifySelector";
+import { SpotifyAnalyzerSource } from "@/components/spotify/SpotifyAnalyzerSource";
 import { UploadCard } from "@/components/upload/upload-card";
 import { LoadingSpinner } from "@/components/ui/loading-spinner";
 import { SkeletonGrid } from "@/components/ui/Skeleton";
@@ -50,14 +50,18 @@ export function UploadForm() {
   const isBusy = status === "uploading" || status === "processing";
 
   useEffect(() => {
-    const params = new URLSearchParams(window.location.search);
-    if (params.get("spotify") !== "1") return;
-    const stored = loadSpotifyTracks();
-    if (!stored) return;
-    setMode("spotify");
-    setSpotifyTrackA(stored.trackA);
-    setSpotifyTrackB(stored.trackB);
-    clearSpotifyTracks();
+    const timer = window.setTimeout(() => {
+      const params = new URLSearchParams(window.location.search);
+      if (params.get("source") === "spotify") setMode("spotify");
+      if (params.get("spotify") !== "1") return;
+      const stored = loadSpotifyTracks();
+      if (!stored) return;
+      setMode("spotify");
+      setSpotifyTrackA(stored.trackA);
+      setSpotifyTrackB(stored.trackB);
+      clearSpotifyTracks();
+    }, 0);
+    return () => window.clearTimeout(timer);
   }, []);
 
   useEffect(() => {
@@ -164,6 +168,18 @@ export function UploadForm() {
       ? !!trackA && !!trackB
       : !!spotifyTrackA && !!spotifyTrackB;
 
+  const missingSelectionCopy = mode === "manual"
+    ? !trackA && !trackB
+      ? "Add Track A and Track B"
+      : !trackA
+        ? "Add Track A to continue"
+        : "Add Track B to continue"
+    : !spotifyTrackA && !spotifyTrackB
+      ? "Select Track A and Track B"
+      : !spotifyTrackA
+        ? "Select Track A to continue"
+        : "Select Track B to continue";
+
   return (
     <section className="mt-12 w-full">
       <AnimatePresence mode="wait">
@@ -185,29 +201,46 @@ export function UploadForm() {
             exit={{ opacity: 0 }}
             className="rounded-3xl border border-zinc-800 bg-card/65 p-6 shadow-[0_25px_80px_-45px_rgba(0,0,0,1)] backdrop-blur md:p-8"
           >
-            <div className="mb-6 flex gap-2">
+            <div className="mb-8">
+              <p className="text-xs font-semibold uppercase tracking-[0.18em] text-text-secondary">
+                How do you want to add your tracks?
+              </p>
+              <div className="mt-4 grid gap-3 sm:grid-cols-2" role="group" aria-label="Track source">
               <button
+                type="button"
                 onClick={() => setMode("manual")}
-                className={`flex items-center gap-1.5 rounded-lg px-3 py-2 text-xs font-medium transition-all ${
+                aria-pressed={mode === "manual"}
+                className={`flex items-center gap-4 rounded-2xl border p-4 text-left transition-all ${
                   mode === "manual"
-                    ? "bg-primary/15 text-primary"
-                    : "bg-zinc-800/50 text-text-secondary hover:bg-zinc-800"
+                    ? "border-primary/50 bg-primary/10"
+                    : "border-zinc-800 bg-zinc-900/40 hover:border-zinc-700"
                 }`}
               >
-                <UploadIcon className="h-3.5 w-3.5" />
-                Upload from computer
+                <FileAudio className={`h-6 w-6 ${mode === "manual" ? "text-primary" : "text-text-secondary"}`} />
+                <span className="flex-1">
+                  <span className="block text-sm font-semibold text-text">Upload audio files</span>
+                  <span className="mt-1 block text-xs text-text-secondary">MP3, WAV, FLAC, AIFF and supported audio formats</span>
+                </span>
+                <ArrowRight className="h-4 w-4 text-text-tertiary" />
               </button>
               <button
+                type="button"
                 onClick={() => setMode("spotify")}
-                className={`flex items-center gap-1.5 rounded-lg px-3 py-2 text-xs font-medium transition-all ${
+                aria-pressed={mode === "spotify"}
+                className={`flex items-center gap-4 rounded-2xl border p-4 text-left transition-all ${
                   mode === "spotify"
-                    ? "bg-primary/15 text-primary"
-                    : "bg-zinc-800/50 text-text-secondary hover:bg-zinc-800"
+                    ? "border-[#1DB954]/50 bg-[#1DB954]/10"
+                    : "border-zinc-800 bg-zinc-900/40 hover:border-zinc-700"
                 }`}
               >
-                <Music className="h-3.5 w-3.5" />
-                Connect Spotify
+                <Music className={`h-6 w-6 ${mode === "spotify" ? "text-[#1DB954]" : "text-text-secondary"}`} />
+                <span className="flex-1">
+                  <span className="block text-sm font-semibold text-text">Choose from Spotify</span>
+                  <span className="mt-1 block text-xs text-text-secondary">Select two tracks without downloading MP3 files</span>
+                </span>
+                <ArrowRight className="h-4 w-4 text-text-tertiary" />
               </button>
+              </div>
             </div>
 
             {mode === "manual" ? (
@@ -223,8 +256,16 @@ export function UploadForm() {
                   onFile={(file) => setTrackB(file)}
                 />
               </div>
+            ) : !isAuthenticated ? (
+              <div className="rounded-2xl border border-[#1DB954]/20 bg-[#1DB954]/5 p-6 text-center">
+                <Music className="mx-auto h-8 w-8 text-[#1DB954]" />
+                <h2 className="mt-4 text-lg font-semibold text-text">Sign in to use Spotify</h2>
+                <p className="mx-auto mt-2 max-w-xl text-sm leading-6 text-text-secondary">
+                  Sign in, connect your Spotify account and choose two tracks directly from your library. Your destination will be preserved.
+                </p>
+              </div>
             ) : (
-              <SpotifySelector
+              <SpotifyAnalyzerSource
                 selectedTrackA={spotifyTrackA}
                 selectedTrackB={spotifyTrackB}
                 onSelectTrack={handleSelectSpotifyTrack}
@@ -236,16 +277,12 @@ export function UploadForm() {
             {isAuthenticated && !canAnalyze && !isBusy ? (
               <div className="mt-6 flex w-full items-center justify-center gap-2 rounded-xl bg-zinc-800/50 px-6 py-4 text-sm font-medium text-text-secondary/60">
                 <Music className="h-4 w-4" />
-                {!spotifyTrackA && !spotifyTrackB
-                  ? "Select Track A and Track B to analyze"
-                  : !spotifyTrackA
-                    ? "Select Track A to continue"
-                    : "Select Track B to continue"}
+                {missingSelectionCopy}
               </div>
             ) : (
               <button
                 onClick={handleAnalyze}
-                disabled={authLoading || !isAuthenticated || isBusy}
+                disabled={authLoading || isBusy}
                 aria-busy={isBusy}
                 className={`mt-6 flex w-full items-center justify-center gap-2 rounded-xl px-6 py-4 text-base font-bold transition-all ${
                   !isAuthenticated
@@ -263,7 +300,7 @@ export function UploadForm() {
                 ) : (
                   <>
                     <Upload className="h-5 w-5" />
-                    Analyze Tracks
+                    {mode === "spotify" ? "Analyze selected tracks" : "Analyze uploaded tracks"}
                   </>
                 )}
               </button>
@@ -339,7 +376,7 @@ export function UploadForm() {
           <SkeletonGrid />
         </motion.div>
       )}
-      <AuthDialog open={authOpen} onOpenChange={setAuthOpen} />
+      <AuthDialog open={authOpen} onOpenChange={setAuthOpen} returnTo="/analyzer" />
     </section>
   );
 }

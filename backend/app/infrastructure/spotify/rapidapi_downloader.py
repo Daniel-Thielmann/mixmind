@@ -161,6 +161,12 @@ class RapidApiSpotifyDownloaderProvider:
 
                     with open(dest, "wb") as target:
                         for chunk in response.iter_bytes(chunk_size=_CHUNK_SIZE):
+                            if total == 0:
+                                prefix = chunk[:32].lstrip().lower()
+                                if prefix.startswith((b"<html", b"<!doctype", b"{")):
+                                    raise InvalidDownloadedAudioError(
+                                        detail="Audio provider returned a non-audio response."
+                                    )
                             total += len(chunk)
                             if total > self._max_size:
                                 dest.unlink(missing_ok=True)

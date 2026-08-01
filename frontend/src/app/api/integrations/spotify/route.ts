@@ -45,7 +45,10 @@ export async function GET(request: NextRequest) {
     }
 
     if (action === "connect") {
-      return await proxyToBackend(`${BACKEND_URL}/api/v1/integrations/spotify/connect`, headers, "connect");
+      const returnTo = searchParams.get("return_to") ?? "/dashboard/settings/integrations";
+      const url = new URL(`${BACKEND_URL}/api/v1/integrations/spotify/connect`);
+      url.searchParams.set("return_to", returnTo);
+      return await proxyToBackend(url.toString(), headers, "connect");
     }
 
     return NextResponse.json({ detail: `Unknown action: ${action}` }, { status: 400 });
@@ -89,18 +92,24 @@ async function proxyToBackend(
   action: string,
 ): Promise<NextResponse> {
   const timeoutMs = action === "status" ? STATUS_TIMEOUT_MS : FETCH_TIMEOUT_MS;
+  const startedAt = performance.now();
 
   let response: Response;
   try {
     response = await fetch(url, { headers, cache: "no-store", signal: AbortSignal.timeout(timeoutMs) });
   } catch (err) {
     const urlPath = new URL(url).pathname;
-    console.error("Backend fetch failed:", urlPath, err);
+    console.error("Backend fetch failed:", {
+      action,
+      urlPath,
+      elapsed: Math.round(performance.now() - startedAt),
+      err,
+    });
 
     let detail: string;
     let status: number;
 
-    if (err instanceof DOMException && err.name === "AbortError") {
+    if (err instanceof DOMException && ["AbortError", "TimeoutError"].includes(err.name)) {
       detail = "Spotify took too long to respond. Please try again.";
       status = 504;
     } else if (err instanceof TypeError && (err.message.includes("econnrefused") || err.message.includes("ECONNREFUSED"))) {
@@ -113,6 +122,13 @@ async function proxyToBackend(
 
     return NextResponse.json({ detail, error_type: status === 504 ? "spotify_timeout" : "backend_unavailable" }, { status });
   }
+
+
+  console.info("Spotify integration BFF request completed", {
+    action,
+    status: response.status,
+    elapsed: Math.round(performance.now() - startedAt),
+  });
 
   let body: unknown;
   try {

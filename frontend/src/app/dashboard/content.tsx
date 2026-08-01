@@ -3,8 +3,9 @@
 import { useEffect, useState } from "react";
 import { motion } from "framer-motion";
 import { useAuth } from "@/hooks/useAuth";
-import { BarChart3, Music, Activity, Sparkles, RefreshCw } from "lucide-react";
-import { SpotifyLibrary } from "@/components/spotify/SpotifyLibrary";
+import Link from "next/link";
+import { BarChart3, Music, Activity, Sparkles, RefreshCw, ArrowRight, History, Settings } from "lucide-react";
+import { SpotifyStatusSummary } from "@/components/spotify/SpotifyStatusSummary";
 
 interface RecentTrack {
   id: string;
@@ -53,7 +54,8 @@ export function DashboardContent() {
   return (
     <div className="flex-1 pb-12 pt-24">
       <div className="mx-auto max-w-7xl px-6">
-        <div className="flex items-center gap-3">
+        <div className="flex flex-col justify-between gap-6 md:flex-row md:items-center">
+          <div className="flex items-center gap-3">
           <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-linear-to-br from-primary to-primary-dark text-background shadow-lg shadow-primary/20">
             <Sparkles className="h-5 w-5" />
           </div>
@@ -61,8 +63,12 @@ export function DashboardContent() {
             <h1 className="text-3xl font-bold tracking-tight text-text">
               Welcome back, {user?.name?.split(" ")[0] ?? "DJ"}
             </h1>
-            <p className="mt-1 text-text-secondary">Your persisted MixMind activity.</p>
+            <p className="mt-1 text-text-secondary">Review your recent activity and start a new transition study.</p>
           </div>
+          </div>
+          <Link href="/analyzer" className="inline-flex items-center justify-center gap-2 rounded-xl bg-primary px-5 py-3 text-sm font-semibold text-background shadow-lg shadow-primary/15 hover:bg-primary-dark">
+            Start new analysis <ArrowRight className="h-4 w-4" />
+          </Link>
         </div>
 
         {loading && <DashboardSkeleton />}
@@ -83,13 +89,21 @@ export function DashboardContent() {
               <StatCard label="Tracks" value={summary.tracks_count} icon={Music} />
             </div>
 
-            <section className="mt-12">
-              <SpotifyLibrary />
-            </section>
+            <div className="mt-8 grid gap-4 lg:grid-cols-[1fr_1fr]">
+              <SpotifyStatusSummary />
+              <section className="rounded-xl border border-border/50 bg-card/50 p-5" aria-labelledby="quick-actions-title">
+                <h2 id="quick-actions-title" className="font-semibold text-text">Quick actions</h2>
+                <div className="mt-4 grid gap-2 sm:grid-cols-3">
+                  <Link href="/analyzer" className="inline-flex items-center gap-2 rounded-lg bg-primary/10 px-3 py-2 text-sm text-primary hover:bg-primary/15"><Sparkles className="h-4 w-4" /> New analysis</Link>
+                  <a href="#recent-activity" className="inline-flex items-center gap-2 rounded-lg bg-background/50 px-3 py-2 text-sm text-text-secondary hover:text-text"><History className="h-4 w-4" /> Recent activity</a>
+                  <Link href="/dashboard/settings" className="inline-flex items-center gap-2 rounded-lg bg-background/50 px-3 py-2 text-sm text-text-secondary hover:text-text"><Settings className="h-4 w-4" /> Settings</Link>
+                </div>
+              </section>
+            </div>
 
-            <section className="mt-12 rounded-xl border border-border/50 bg-card/50 p-6 backdrop-blur-sm">
+            <section id="recent-activity" className="mt-8 rounded-xl border border-border/50 bg-card/50 p-6 backdrop-blur-sm">
               <div className="flex items-center justify-between">
-                <h2 className="text-lg font-semibold text-text">Recent tracks</h2>
+                <h2 className="text-lg font-semibold text-text">Recent activity</h2>
                 <Activity className="h-4 w-4 text-text-tertiary" />
               </div>
               {summary.recent_tracks.length === 0 ? (

@@ -3,6 +3,7 @@
 import { createContext, useCallback, useEffect, useState } from "react";
 import { authClient } from "@/lib/auth-client";
 import type { AuthUser } from "@/types/auth";
+import { safeReturnTo } from "@/lib/safe-return-to";
 
 const ADMIN_STORAGE_KEY = "mixmind_admin_session";
 
@@ -15,8 +16,8 @@ interface AuthContextValue {
   user: AuthUser | null;
   loading: boolean;
   isAuthenticated: boolean;
-  signInGoogle: () => Promise<void>;
-  signInGithub: () => Promise<void>;
+  signInGoogle: (returnTo?: string) => Promise<void>;
+  signInGithub: (returnTo?: string) => Promise<void>;
   signInEmail: (email: string, password: string) => Promise<string | null>;
   logout: () => Promise<void>;
   refreshUser: () => Promise<void>;
@@ -80,16 +81,16 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     return () => window.clearTimeout(t);
   }, [refreshUser]);
 
-  const signInGoogle = useCallback(async () => {
+  const signInGoogle = useCallback(async (returnTo?: string) => {
     const { error } = await authClient.signIn.social({
-      provider: "google", callbackURL: "/dashboard",
+      provider: "google", callbackURL: safeReturnTo(returnTo),
     });
     if (error) throw new Error(error.message ?? "Google sign-in failed.");
   }, []);
 
-  const signInGithub = useCallback(async () => {
+  const signInGithub = useCallback(async (returnTo?: string) => {
     const { error } = await authClient.signIn.social({
-      provider: "github", callbackURL: "/dashboard",
+      provider: "github", callbackURL: safeReturnTo(returnTo),
     });
     if (error) throw new Error(error.message ?? "GitHub sign-in failed.");
   }, []);

@@ -1,6 +1,9 @@
 from __future__ import annotations
 
 import logging
+import subprocess
+import time
+from contextlib import suppress
 from pathlib import Path
 from typing import BinaryIO, Protocol
 
@@ -43,6 +46,9 @@ class _DownloadedAudioSource:
         self.content_type: str | None = content_type
         self.file: BinaryIO = path.open("rb")
 
+    def close(self) -> None:
+        self.file.close()
+
 
 class SpotifyAnalysisService:
     def __init__(
@@ -58,11 +64,20 @@ class SpotifyAnalysisService:
         request: SpotifyAnalysisRequest,
         spotify_api_client: ExtendedSpotifyApiClient,
     ) -> UploadAnalysisResponse:
-        track_a_meta = await spotify_api_client.get_track_metadata(
-            request.get_track_a().spotify_track_id
+        import asyncio
+
+        started_at = time.monotonic()
+        track_a_meta, track_b_meta = await asyncio.gather(
+            spotify_api_client.get_track_metadata(
+                request.get_track_a().spotify_track_id
+            ),
+            spotify_api_client.get_track_metadata(
+                request.get_track_b().spotify_track_id
+            ),
         )
-        track_b_meta = await spotify_api_client.get_track_metadata(
-            request.get_track_b().spotify_track_id
+        logger.info(
+            "spotify_analysis_stage | stage=metadata | elapsed_ms=%.0f",
+            (time.monotonic() - started_at) * 1000,
         )
 
         logger.info(
@@ -73,50 +88,135 @@ class SpotifyAnalysisService:
             track_b_meta.spotify_id,
         )
 
-        acquired_a = self._download_and_validate(track_a_meta, "track_a")
-        try:
-            acquired_b = self._download_and_validate(track_b_meta, "track_b")
-        except Exception:
-            self._cleanup(acquired_a)
-            raise
-
-        source_a = _DownloadedAudioSource(
-            path=acquired_a.local_path,
-            filename=acquired_a.original_filename or f"{track_a_meta.spotify_id}.mp3",
-            content_type=acquired_a.mime_type,
+        download_started_at = time.monotonic()
+        acquired_a = await asyncio.to_thread(
+            self._download_and_validate, track_a_meta, "track_a"
         )
-        source_b = _DownloadedAudioSource(
-            path=acquired_b.local_path,
-            filename=acquired_b.original_filename or f"{track_b_meta.spotify_id}.mp3",
-            content_type=acquired_b.mime_type,
-        )
-
         try:
-            import asyncio
-
-            response = await asyncio.to_thread(
-                self._analysis_service.analyze, source_a, source_b
+            acquired_b = await asyncio.to_thread(
+                self._download_and_validate, track_b_meta, "track_b"
             )
         except Exception:
             self._cleanup(acquired_a)
-            self._cleanup(acquired_b)
             raise
 
-        self._cleanup(acquired_a)
-        self._cleanup(acquired_b)
+        logger.info(
+            "spotify_analysis_stage | stage=downloads | elapsed_ms=%.0f",
+            (time.monotonic() - download_started_at) * 1000,
+        )
 
-        return response
+        source_a: _DownloadedAudioSource | None = None
+        source_b: _DownloadedAudioSource | None = None
+        try:
+            source_a = _DownloadedAudioSource(
+                path=acquired_a.local_path,
+                filename=acquired_a.original_filename
+                or f"{track_a_meta.spotify_id}.mp3",
+                content_type=acquired_a.mime_type,
+            )
+            source_b = _DownloadedAudioSource(
+                path=acquired_b.local_path,
+                filename=acquired_b.original_filename
+                or f"{track_b_meta.spotify_id}.mp3",
+                content_type=acquired_b.mime_type,
+            )
+            analysis_started_at = time.monotonic()
+            response = await asyncio.to_thread(
+                self._analysis_service.analyze, source_a, source_b
+            )
+            logger.info(
+                "spotify_analysis_stage | stage=dsp | elapsed_ms=%.0f | total_ms=%.0f",
+                (time.monotonic() - analysis_started_at) * 1000,
+                (time.monotonic() - started_at) * 1000,
+            )
+            return response
+        finally:
+            if source_a is not None:
+                with suppress(OSError):
+                    source_a.close()
+            if source_b is not None:
+                with suppress(OSError):
+                    source_b.close()
+            self._cleanup(acquired_a)
+            self._cleanup(acquired_b)
 
     def _download_and_validate(
         self, metadata: SpotifyTrackMetadata, position: TrackPosition
     ) -> AcquiredAudio:
         acquired = self._downloader.acquire(metadata)
         try:
+            self._ensure_decodable_audio(acquired, position)
             self._validate_audio_length(acquired, metadata, position)
         except Exception:
             self._cleanup(acquired)
             raise
         return acquired
+
+    def _ensure_decodable_audio(
+        self, acquired: AcquiredAudio, position: TrackPosition
+    ) -> None:
+        import soundfile as sf
+
+        try:
+            sf.info(str(acquired.local_path))
+            return
+        except Exception as probe_error:
+            logger.info(
+                "SoundFile could not open %s; normalizing with FFmpeg: %s",
+                position,
+                type(probe_error).__name__,
+            )
+
+        source_path = acquired.local_path
+        normalized_path = source_path.with_suffix(".normalized.wav")
+        try:
+            completed = subprocess.run(
+                [
+                    "ffmpeg",
+                    "-nostdin",
+                    "-hide_banner",
+                    "-loglevel",
+                    "error",
+                    "-y",
+                    "-i",
+                    str(source_path),
+                    "-vn",
+                    "-acodec",
+                    "pcm_s16le",
+                    str(normalized_path),
+                ],
+                capture_output=True,
+                check=False,
+                timeout=120,
+            )
+        except (OSError, subprocess.TimeoutExpired) as exc:
+            normalized_path.unlink(missing_ok=True)
+            raise InvalidDownloadedAudioError(
+                detail=f"Downloaded audio for {position} could not be decoded."
+            ) from exc
+
+        if completed.returncode != 0 or not normalized_path.exists():
+            normalized_path.unlink(missing_ok=True)
+            raise InvalidDownloadedAudioError(
+                detail=f"Downloaded audio for {position} is not a valid audio file."
+            )
+
+        try:
+            info = sf.info(str(normalized_path))
+            if info.frames <= 0 or info.samplerate <= 0:
+                raise ValueError("normalized audio is empty")
+        except Exception as exc:
+            normalized_path.unlink(missing_ok=True)
+            raise InvalidDownloadedAudioError(
+                detail=f"Downloaded audio for {position} is not a valid audio file."
+            ) from exc
+
+        source_path.unlink(missing_ok=True)
+        acquired.local_path = normalized_path
+        acquired.mime_type = "audio/wav"
+        acquired.size_bytes = normalized_path.stat().st_size
+        acquired.checksum_sha256 = None
+        acquired.original_filename = f"{source_path.stem}.wav"
 
     def _validate_audio_length(
         self,
@@ -133,14 +233,14 @@ class SpotifyAnalysisService:
             diff = abs(file_duration - spotify_duration)
 
             if diff > _DURATION_WARNING_SECONDS:
-                if diff > _DURATION_TOLERANCE_SECONDS:
-                    raise AudioDurationMismatchError(
-                        detail=(
-                            f"Downloaded {position} duration ({file_duration:.1f}s) "
-                            f"differs from Spotify metadata ({spotify_duration:.1f}s) "
-                            f"by {diff:.1f}s."
-                        )
+                raise AudioDurationMismatchError(
+                    detail=(
+                        f"Downloaded {position} duration ({file_duration:.1f}s) "
+                        f"differs from Spotify metadata ({spotify_duration:.1f}s) "
+                        f"by {diff:.1f}s."
                     )
+                )
+            if diff > _DURATION_TOLERANCE_SECONDS:
                 logger.warning(
                     "Duration mismatch for %s: file=%.1fs vs spotify=%.1fs (diff=%.1fs)",
                     position,

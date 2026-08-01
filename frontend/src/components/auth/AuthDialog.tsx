@@ -14,10 +14,12 @@ import {
 import { GoogleButton } from "./GoogleButton";
 import { GitHubButton } from "./GitHubButton";
 import { Mail, Lock, Loader2 } from "lucide-react";
+import { safeReturnTo } from "@/lib/safe-return-to";
 
 interface AuthDialogProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
+  returnTo?: string;
 }
 
 const containerVariants = {
@@ -37,7 +39,7 @@ const itemVariants = {
   },
 };
 
-export function AuthDialog({ open, onOpenChange }: AuthDialogProps) {
+export function AuthDialog({ open, onOpenChange, returnTo }: AuthDialogProps) {
   const { signInGoogle, signInGithub, signInEmail } = useAuth();
   const router = useRouter();
   const [loading, setLoading] = useState<"google" | "github" | "email" | null>(null);
@@ -55,7 +57,7 @@ export function AuthDialog({ open, onOpenChange }: AuthDialogProps) {
     setLoading(provider);
     setError(null);
     try {
-      await signInFns[provider]();
+      await signInFns[provider](safeReturnTo(returnTo));
     } catch (signInError) {
       setError(
         signInError instanceof Error
@@ -85,7 +87,7 @@ export function AuthDialog({ open, onOpenChange }: AuthDialogProps) {
         return;
       }
       onOpenChange(false);
-      router.push("/dashboard");
+      router.push(safeReturnTo(returnTo));
     } catch (signInError) {
       setError(
         signInError instanceof Error

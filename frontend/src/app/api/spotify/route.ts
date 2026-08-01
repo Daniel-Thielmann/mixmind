@@ -115,6 +115,7 @@ async function proxyToBackend(
   action: string,
 ): Promise<NextResponse> {
   const timeoutMs = action === "search" ? FETCH_TIMEOUT_MS : SPOTIFY_TIMEOUT_MS;
+  const startedAt = performance.now();
 
   let response: Response;
   try {
@@ -124,14 +125,14 @@ async function proxyToBackend(
       signal: AbortSignal.timeout(timeoutMs),
     });
   } catch (err) {
-    const elapsed = Math.round(performance.now());
+    const elapsed = Math.round(performance.now() - startedAt);
     const urlPath = new URL(url).pathname;
-    console.error("Backend fetch failed:", urlPath, err);
+    console.error("Backend fetch failed:", { action, urlPath, elapsed, err });
 
     let detail: string;
     let status: number;
 
-    if (err instanceof DOMException && err.name === "AbortError") {
+    if (err instanceof DOMException && ["AbortError", "TimeoutError"].includes(err.name)) {
       detail = "Spotify took too long to respond. Please try again.";
       status = 504;
     } else if (err instanceof TypeError && (err.message.includes("fetch") || err.message.includes("network"))) {
@@ -156,6 +157,12 @@ async function proxyToBackend(
       { status },
     );
   }
+
+  console.info("Spotify BFF request completed", {
+    action,
+    status: response.status,
+    elapsed: Math.round(performance.now() - startedAt),
+  });
 
   let body: unknown;
   try {

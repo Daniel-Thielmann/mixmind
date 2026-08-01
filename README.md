@@ -1,6 +1,6 @@
 <div align="center">
   <br/>
-  <img src="frontend/public/dash.png" alt="MixMind" width="800" style="border-radius: 8px;"/>
+  <img src="frontend/public/dash.gif" alt="MixMind home and Spotify analyzer flow" width="800" style="border-radius: 8px;"/>
   <br/><br/>
   <h1>MixMind</h1>
   <p><strong>AI-powered DJ Mixing Assistant</strong></p>
@@ -49,8 +49,10 @@ Instead of manually analyzing songs, the platform performs Digital Signal Proces
 ## Features
 
 - AI-powered DJ track recommendations
-- Professional DJ dashboard
-- Audio upload and storage
+- Focused dashboard with recent analyses and Spotify integration status
+- Audio upload or direct track selection from Spotify
+- Owned Spotify playlists, saved tracks and catalog search
+- Secure Spotify OAuth flow with automatic token refresh
 - BPM estimation
 - RMS Energy calculation
 - Duration and sample rate extraction
@@ -133,7 +135,7 @@ MixMind-AI/
 │   └── pyproject.toml
 ├── frontend/
 │   ├── src/
-│   ├── public/                 # Static assets (demo video, dash.png, etc.)
+│   ├── public/                 # Static assets (demo video, dash.gif, etc.)
 │   ├── Dockerfile
 │   └── package.json
 ├── datasets/
@@ -219,6 +221,15 @@ docker compose down
 ---
 
 ## Usage
+
+### Analyze tracks from Spotify
+
+1. Open the Analyzer and choose **Spotify** as the audio source.
+2. Connect your Spotify account when prompted.
+3. Select tracks from playlists you own, your saved tracks, or Spotify search.
+4. Assign Track A and Track B, then start the analysis.
+
+The Analyzer is the single workspace for track selection and analysis. The Dashboard remains focused on recent activity, quick actions, and integration status. Followed playlists are intentionally hidden because Spotify only permits track browsing for playlists owned by the connected user.
 
 ### Running Tests
 

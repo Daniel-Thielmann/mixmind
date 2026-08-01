@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import logging
+from collections.abc import Awaitable, Callable
 from dataclasses import dataclass
 from typing import Any
 
@@ -70,8 +71,13 @@ def _get_shared_client() -> httpx.AsyncClient:
 
 
 class ExtendedSpotifyApiClient:
-    def __init__(self, access_token: str) -> None:
+    def __init__(
+        self,
+        access_token: str,
+        refresh_access_token: Callable[[], Awaitable[str | None]] | None = None,
+    ) -> None:
         self._access_token = access_token
+        self._refresh_access_token = refresh_access_token
 
     async def get_track_metadata(self, track_id: str) -> SpotifyTrackMetadata:
         data = await self._get(f"/tracks/{track_id}")
@@ -130,12 +136,29 @@ class ExtendedSpotifyApiClient:
 
     async def _get(self, path: str) -> dict[str, Any]:
         url = f"{SPOTIFY_API_BASE}{path}"
-        headers = self._headers()
         client = _get_shared_client()
-        response = await client.get(url, headers=headers)
+        try:
+            response = await client.get(url, headers=self._headers())
+        except (httpx.TimeoutException, httpx.NetworkError) as exc:
+            logger.warning(
+                "Spotify API transport error | path=%s | error=%s",
+                path.split("?")[0],
+                type(exc).__name__,
+            )
+            raise SpotifyApiUnavailableError() from exc
+
+        if response.status_code == 401 and self._refresh_access_token is not None:
+            refreshed_token = await self._refresh_access_token()
+            if refreshed_token:
+                self._access_token = refreshed_token
+                try:
+                    response = await client.get(url, headers=self._headers())
+                except (httpx.TimeoutException, httpx.NetworkError) as exc:
+                    raise SpotifyApiUnavailableError() from exc
         if response.status_code == 200:
             return response.json()
         self._handle_error_response(response, path)
+        raise AssertionError("Spotify error handler returned unexpectedly")
 
     def _handle_error_response(self, response: httpx.Response, path: str) -> None:
         spotify_error_body: dict[str, Any] | None = None
@@ -179,7 +202,11 @@ class ExtendedSpotifyApiClient:
         if response.status_code == 404:
             raise SpotifyTrackNotFoundError()
         if response.status_code == 429:
-            raise SpotifyRateLimitError()
+            retry_after = response.headers.get("Retry-After")
+            detail = "Spotify API rate limit exceeded. Try again later."
+            if retry_after and retry_after.isdigit():
+                detail = f"Spotify is busy. Try again in {retry_after} seconds."
+            raise SpotifyRateLimitError(detail=detail)
         if 500 <= response.status_code < 600:
             raise SpotifyApiUnavailableError()
         raise SpotifyApiError(

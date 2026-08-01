@@ -713,6 +713,6 @@ class TestLLMManagerDirect:
             client=client,
         )
         messages = [{"role": "user", "content": "test"}]
-        parsed, model, attempts = manager.generate(messages)
+        parsed, model, _attempts = manager.generate(messages)
         assert model == "primary"
         assert parsed["summary"] == "ok"

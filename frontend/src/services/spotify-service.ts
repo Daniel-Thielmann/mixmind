@@ -6,11 +6,13 @@ const FRIENDLY_ERROR_MESSAGE = "Unable to analyze the selected tracks. Please tr
 export async function fetchSpotifyData<T>(
   action: string,
   params?: Record<string, string>,
+  signal?: AbortSignal,
 ): Promise<T> {
   const searchParams = new URLSearchParams({ action, ...(params ?? {}) }).toString();
+  const timeoutSignal = AbortSignal.timeout(40000);
   const response = await fetch(`/api/spotify?${searchParams}`, {
     cache: "no-store",
-    signal: AbortSignal.timeout(40000),
+    signal: signal ? AbortSignal.any([signal, timeoutSignal]) : timeoutSignal,
   });
   if (!response.ok) {
     const payload = (await response.json().catch(() => null)) as { detail?: string; error_type?: string } | null;

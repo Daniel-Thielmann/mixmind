@@ -15,7 +15,7 @@ export default function AnalyzerPage() {
           </div>
           <h1 className="text-4xl font-bold tracking-tight md:text-6xl">Find the transition before the crowd hears it.</h1>
           <p className="mt-5 max-w-2xl text-lg leading-relaxed text-text-secondary">
-            Upload two tracks to reveal compatibility, risks, timing and a transition plan built for your set.
+            Upload two audio files or choose tracks directly from Spotify. MixMind handles acquisition, compatibility, risks, timing and your transition plan.
           </p>
         </div>
         <UploadForm />

@@ -428,6 +428,38 @@ class TestSpotifyAnalysisService:
         )
         service = SpotifyAnalysisService()
         service._cleanup(acquired)
+
+    def test_normalizes_audio_not_supported_by_soundfile(
+        self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
+        import subprocess
+
+        import numpy as np
+        import soundfile as sf
+
+        source = tmp_path / "provider_payload.mp3"
+        source.write_bytes(b"valid-provider-container-placeholder")
+        acquired = AcquiredAudio(
+            local_path=source,
+            mime_type="application/octet-stream",
+            provider="test",
+            temporary=True,
+        )
+
+        def fake_run(command: list[str], **_: object) -> subprocess.CompletedProcess:
+            output = Path(command[-1])
+            sf.write(output, np.zeros(22050, dtype=np.float32), 22050)
+            return subprocess.CompletedProcess(command, 0)
+
+        monkeypatch.setattr(subprocess, "run", fake_run)
+
+        service = SpotifyAnalysisService()
+        service._ensure_decodable_audio(acquired, "track_a")
+
+        assert acquired.local_path.suffix == ".wav"
+        assert acquired.local_path.exists()
+        assert acquired.mime_type == "audio/wav"
+        assert not source.exists()
         service._cleanup(acquired)
 
     def test_duration_validation_within_tolerance(self, tmp_path: Path) -> None:

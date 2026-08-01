@@ -1,6 +1,7 @@
 "use client";
 
 import { motion } from "framer-motion";
+import Image from "next/image";
 import { CheckCircle2, Music, X } from "lucide-react";
 
 interface TrackCardProps {
@@ -40,9 +41,12 @@ export function TrackCard({
       }`}
     >
       {track.albumArt ? (
-        <img
+        <Image
           src={track.albumArt}
           alt={track.album}
+          width={48}
+          height={48}
+          unoptimized
           className="h-12 w-12 flex-shrink-0 rounded-lg object-cover"
         />
       ) : (

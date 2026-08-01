@@ -1,7 +1,10 @@
 "use client";
 
 import { motion } from "framer-motion";
-import { useMemo } from "react";
+import { useMemo, useState } from "react";
+import { useRouter } from "next/navigation";
+import { AuthDialog } from "@/components/auth/AuthDialog";
+import { useAuth } from "@/hooks/useAuth";
 import { FrequencyBars } from "./FrequencyBars";
 
 const FADE_UP = {
@@ -14,6 +17,15 @@ const FADE_UP = {
 };
 
 export function Hero() {
+  const router = useRouter();
+  const { isAuthenticated } = useAuth();
+  const [authOpen, setAuthOpen] = useState(false);
+
+  function startWithSpotify() {
+    if (isAuthenticated) router.push("/analyzer?source=spotify");
+    else setAuthOpen(true);
+  }
+
   return (
     <section className="relative flex min-h-screen items-center justify-center overflow-hidden px-6 pb-20 pt-24">
       <BackgroundEffects />
@@ -28,7 +40,7 @@ export function Hero() {
             className="mb-6 inline-flex items-center gap-2 rounded-full border border-primary/20 bg-primary/5 px-4 py-1.5 text-xs font-medium text-primary"
           >
             <span className="flex h-2 w-2 rounded-full bg-primary animate-pulse-slow" />
-            AI-Powered DJ Analysis Platform
+            New — Spotify integration
           </motion.div>
 
           <motion.h1
@@ -52,8 +64,7 @@ export function Hero() {
             animate="visible"
             className="mx-auto mt-6 max-w-lg text-base leading-relaxed text-text-secondary md:text-lg lg:mx-0"
           >
-            Upload your tracks. Let MixMind analyze BPM, energy, harmonic keys, and
-            compatibility. Get AI-powered recommendations for seamless DJ transitions.
+            Upload two audio files or choose tracks directly from Spotify. MixMind analyzes BPM, energy, harmonic keys and compatibility without requiring a manual MP3 upload in Spotify mode.
           </motion.p>
 
           <motion.div
@@ -63,29 +74,27 @@ export function Hero() {
             animate="visible"
             className="mt-8 flex flex-col items-center gap-4 sm:flex-row lg:items-start"
           >
-            <motion.a
-              href="#upload"
+            <motion.button
+              type="button"
+              onClick={startWithSpotify}
               whileHover={{ scale: 1.02 }}
               whileTap={{ scale: 0.98 }}
               className="inline-flex h-12 items-center gap-2 rounded-xl bg-primary px-6 text-sm font-semibold text-background transition-all duration-300 hover:bg-primary-dark hover:shadow-lg hover:shadow-primary/20"
+            >
+              Try with Spotify
+            </motion.button>
+            <motion.a
+              href="/analyzer?source=manual"
+              whileHover={{ scale: 1.02 }}
+              whileTap={{ scale: 0.98 }}
+              className="inline-flex h-12 items-center gap-2 rounded-xl border border-border bg-card/50 px-6 text-sm font-medium text-text-secondary transition-all duration-300 hover:border-border-light hover:text-text"
             >
               <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
                 <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4" />
                 <polyline points="17 8 12 3 7 8" />
                 <line x1="12" y1="3" x2="12" y2="15" />
               </svg>
-              Start Analyzing
-            </motion.a>
-            <motion.a
-              href="#demo"
-              whileHover={{ scale: 1.02 }}
-              whileTap={{ scale: 0.98 }}
-              className="inline-flex h-12 items-center gap-2 rounded-xl border border-border bg-card/50 px-6 text-sm font-medium text-text-secondary transition-all duration-300 hover:border-border-light hover:text-text"
-            >
-              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-                <polygon points="5,3 19,12 5,21" />
-              </svg>
-              Watch Demo
+              Upload audio files
             </motion.a>
           </motion.div>
 
@@ -122,6 +131,7 @@ export function Hero() {
           <HeroMockup />
         </motion.div>
       </div>
+      <AuthDialog open={authOpen} onOpenChange={setAuthOpen} returnTo="/analyzer?source=spotify" />
     </section>
   );
 }

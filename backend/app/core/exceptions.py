@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import logging
 import traceback
+from typing import Any
 
 from fastapi import HTTPException, Request, status
 from fastapi.responses import JSONResponse
@@ -98,7 +99,10 @@ class SpotifyBadRequestError(AppError):
     detail = "We couldn\u2019t complete this Spotify search. Please try again."
 
     def __init__(
-        self, detail: str | None = None, *, spotify_response: dict | None = None
+        self,
+        detail: str | None = None,
+        *,
+        spotify_response: dict[str, Any] | None = None,
     ) -> None:
         if detail:
             super().__init__(detail=detail)

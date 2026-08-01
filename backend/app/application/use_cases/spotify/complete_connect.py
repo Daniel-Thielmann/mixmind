@@ -37,31 +37,36 @@ class CompleteSpotifyConnectionUseCase:
         code: str | None,
         state: str,
         error: str | None = None,
-    ) -> tuple[SpotifyConnection | None, str | None]:
+    ) -> tuple[SpotifyConnection | None, str | None, str]:
         if error == "access_denied":
             logger.info("User denied Spotify authorization")
-            return None, "Authorization denied. Please try again."
+            return None, "Authorization denied. Please try again.", "/dashboard"
 
         if not code:
-            return None, "Missing authorization code."
+            return None, "Missing authorization code.", "/dashboard"
 
-        user_id = self._state_service.validate_and_consume_state(state)
-        if user_id is None:
+        state_context = self._state_service.validate_and_consume_state(state)
+        if state_context is None:
             logger.warning("Invalid, expired, or replayed state parameter")
-            return None, "Invalid or expired state. Please try connecting again."
+            return (
+                None,
+                "Invalid or expired state. Please try connecting again.",
+                "/dashboard",
+            )
+        user_id, return_to = state_context
 
         try:
             token_response = await self._oauth.exchange_code(code)
         except Exception:
             logger.error("Failed to exchange authorization code")
-            return None, "Failed to complete authorization with Spotify."
+            return None, "Failed to complete authorization with Spotify.", return_to
 
         try:
             api_client = SpotifyApiClient(token_response.access_token)
             profile = api_client.get_current_user()
         except Exception:
             logger.error("Failed to fetch Spotify user profile")
-            return None, "Failed to verify Spotify account."
+            return None, "Failed to verify Spotify account.", return_to
 
         expires_at = int(time.time()) + token_response.expires_in
         now = datetime.now(UTC)
@@ -88,4 +93,4 @@ class CompleteSpotifyConnectionUseCase:
             user_id,
             profile.id,
         )
-        return connection, None
+        return connection, None, return_to

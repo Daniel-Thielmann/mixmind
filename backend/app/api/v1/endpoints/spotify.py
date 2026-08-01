@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import logging
 import time
+from typing import Any
 
 from fastapi import APIRouter, Depends, Query, status
 from fastapi.responses import RedirectResponse
@@ -39,6 +40,20 @@ logger = logging.getLogger(__name__)
 
 router = APIRouter(tags=["Integrations"])
 
+_ALLOWED_SPOTIFY_RETURN_TO = {
+    "/analyzer",
+    "/analyzer?source=spotify",
+    "/dashboard/settings/integrations",
+}
+
+
+def _safe_spotify_return_to(value: str) -> str:
+    return (
+        value
+        if value in _ALLOWED_SPOTIFY_RETURN_TO
+        else "/dashboard/settings/integrations"
+    )
+
 
 def _get_repository(db: Session) -> SqlAlchemySpotifyConnectionRepository:
     return SqlAlchemySpotifyConnectionRepository(db)
@@ -67,7 +82,16 @@ async def _get_spotify_client(db: Session, user_id: str) -> ExtendedSpotifyApiCl
             )
         access_token = refreshed.access_token
 
-    return ExtendedSpotifyApiClient(access_token=access_token)
+    async def refresh_after_unauthorized() -> str | None:
+        refreshed = await RefreshSpotifyAccessTokenUseCase(repository=repo).execute(
+            user_id
+        )
+        return refreshed.access_token if refreshed else None
+
+    return ExtendedSpotifyApiClient(
+        access_token=access_token,
+        refresh_access_token=refresh_after_unauthorized,
+    )
 
 
 async def _call_spotify_with_timing(
@@ -75,7 +99,7 @@ async def _call_spotify_with_timing(
     endpoint: str,
     limit: int,
     offset: int,
-) -> dict:
+) -> dict[str, Any]:
     t0 = time.monotonic()
     paging = await getattr(client, f"get_{endpoint}")(limit=limit, offset=offset)
     t1 = time.monotonic()
@@ -115,12 +139,13 @@ def get_status(
 @router.get("/connect", response_model=SpotifyAuthorizeUrlResponse)
 def connect(
     db: DatabaseSession,
+    return_to: str = Query(default="/dashboard/settings/integrations"),
     user_id: str = Depends(get_current_owner_id),
 ) -> SpotifyAuthorizeUrlResponse:
     use_case = StartSpotifyConnectUseCase(
         repository=_get_repository(db),
     )
-    return use_case.execute(user_id)
+    return use_case.execute(user_id, _safe_spotify_return_to(return_to))
 
 
 @router.get("/callback")
@@ -142,7 +167,7 @@ async def callback(
     use_case = CompleteSpotifyConnectionUseCase(
         repository=_get_repository(db),
     )
-    connection, err_msg = await use_case.execute(
+    connection, err_msg, return_to = await use_case.execute(
         code=code,
         state=state,
         error=error,
@@ -151,13 +176,15 @@ async def callback(
     if err_msg or not connection:
         from urllib.parse import quote
 
+        error_target = f"{frontend_url}{_safe_spotify_return_to(return_to)}"
+        separator = "&" if "?" in return_to else "?"
         return RedirectResponse(
-            url=f"{redirect_to}?spotify=error&message={quote(err_msg or 'unknown')}",
+            url=f"{error_target}{separator}spotify=error&message={quote(err_msg or 'unknown')}",
             status_code=status.HTTP_303_SEE_OTHER,
         )
 
     return RedirectResponse(
-        url=f"{redirect_to}?spotify=connected",
+        url=f"{frontend_url}{return_to}{'&' if '?' in return_to else '?'}spotify=connected",
         status_code=status.HTTP_303_SEE_OTHER,
     )
 
@@ -177,16 +204,16 @@ def disconnect(
 class SpotifyTrackItemResponse(BaseModel):
     id: str
     name: str
-    artists: list[dict]
-    album: dict
+    artists: list[dict[str, Any]]
+    album: dict[str, Any]
     duration_ms: int
-    external_urls: dict
+    external_urls: dict[str, Any]
     popularity: int
 
 
 class SpotifyPagingResponse(BaseModel):
     href: str
-    items: list[dict]
+    items: list[dict[str, Any]]
     limit: int
     next: str | None
     offset: int

@@ -4,7 +4,13 @@ import { getServerSession } from "@/lib/auth";
 
 export const runtime = "nodejs";
 
+const ANALYSIS_TIMEOUT_MS = Number.parseInt(
+  process.env.BACKEND_ANALYSIS_TIMEOUT_MS ?? "120000",
+  10,
+);
+
 export async function POST(request: NextRequest) {
+  const startedAt = performance.now();
   try {
     const session = await getServerSession();
     if (!session?.user?.id) {
@@ -45,6 +51,12 @@ export async function POST(request: NextRequest) {
         "X-MixMind-Signature": signature,
       },
       body: JSON.stringify(body),
+      signal: AbortSignal.timeout(ANALYSIS_TIMEOUT_MS),
+    });
+
+    console.info("Spotify analysis BFF completed", {
+      status: response.status,
+      elapsed: Math.round(performance.now() - startedAt),
     });
 
     const responseBody = await response.json().catch(() => ({
@@ -52,10 +64,21 @@ export async function POST(request: NextRequest) {
     }));
     return NextResponse.json(responseBody, { status: response.status });
   } catch (error) {
-    console.error("Spotify analysis BFF error:", error);
+    const timedOut =
+      error instanceof DOMException &&
+      ["AbortError", "TimeoutError"].includes(error.name);
+    console.error("Spotify analysis BFF error:", {
+      elapsed: Math.round(performance.now() - startedAt),
+      error,
+    });
     return NextResponse.json(
-      { detail: "An unexpected error occurred while contacting the analysis service." },
-      { status: 502 },
+      {
+        detail: timedOut
+          ? "Spotify analysis took too long. Please try again."
+          : "An unexpected error occurred while contacting the analysis service.",
+        error_type: timedOut ? "analysis_timeout" : "backend_unavailable",
+      },
+      { status: timedOut ? 504 : 502 },
     );
   }
 }

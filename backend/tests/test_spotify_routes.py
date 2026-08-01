@@ -207,6 +207,99 @@ class TestSearchExceptionHandling:
         assert exc.status_code == 502
 
 
+class TestSpotifyClientResilience:
+    def test_retries_once_with_refreshed_token_after_401(self) -> None:
+        import asyncio
+        from unittest.mock import AsyncMock, patch
+
+        import httpx
+
+        from app.infrastructure.spotify.extended_api_client import (
+            ExtendedSpotifyApiClient,
+        )
+
+        request = httpx.Request("GET", "https://api.spotify.com/v1/me/playlists")
+        shared_client = AsyncMock()
+        shared_client.get.side_effect = [
+            httpx.Response(
+                401, request=request, json={"error": {"message": "expired"}}
+            ),
+            httpx.Response(200, request=request, json={"items": [], "total": 0}),
+        ]
+        refresh = AsyncMock(return_value="fresh-token")
+        spotify = ExtendedSpotifyApiClient("expired-token", refresh)
+
+        with patch(
+            "app.infrastructure.spotify.extended_api_client._get_shared_client",
+            return_value=shared_client,
+        ):
+            result = asyncio.run(spotify.get_user_playlists())
+
+        assert result.total == 0
+        assert shared_client.get.await_count == 2
+        assert refresh.await_count == 1
+        assert (
+            shared_client.get.await_args_list[1].kwargs["headers"]["Authorization"]
+            == "Bearer fresh-token"
+        )
+
+    def test_maps_network_errors_to_api_unavailable(self) -> None:
+        import asyncio
+        from unittest.mock import AsyncMock, patch
+
+        import httpx
+        import pytest
+
+        from app.core.exceptions import SpotifyApiUnavailableError
+        from app.infrastructure.spotify.extended_api_client import (
+            ExtendedSpotifyApiClient,
+        )
+
+        shared_client = AsyncMock()
+        shared_client.get.side_effect = httpx.ConnectError("offline")
+        spotify = ExtendedSpotifyApiClient("token")
+
+        with (
+            patch(
+                "app.infrastructure.spotify.extended_api_client._get_shared_client",
+                return_value=shared_client,
+            ),
+            pytest.raises(SpotifyApiUnavailableError),
+        ):
+            asyncio.run(spotify.get_user_playlists())
+
+    def test_rate_limit_includes_retry_after(self) -> None:
+        import asyncio
+        from unittest.mock import AsyncMock, patch
+
+        import httpx
+        import pytest
+
+        from app.core.exceptions import SpotifyRateLimitError
+        from app.infrastructure.spotify.extended_api_client import (
+            ExtendedSpotifyApiClient,
+        )
+
+        request = httpx.Request("GET", "https://api.spotify.com/v1/me/playlists")
+        shared_client = AsyncMock()
+        shared_client.get.return_value = httpx.Response(
+            429,
+            request=request,
+            headers={"Retry-After": "7"},
+            json={"error": {"message": "rate limited"}},
+        )
+        spotify = ExtendedSpotifyApiClient("token")
+
+        with (
+            patch(
+                "app.infrastructure.spotify.extended_api_client._get_shared_client",
+                return_value=shared_client,
+            ),
+            pytest.raises(SpotifyRateLimitError, match="7 seconds"),
+        ):
+            asyncio.run(spotify.get_user_playlists())
+
+
 class TestExtractTrackFromItem:
     def test_extracts_from_item_field(self) -> None:
         from app.infrastructure.spotify.extended_api_client import (

@@ -56,7 +56,16 @@ async def _get_spotify_client(db: Session, user_id: str) -> ExtendedSpotifyApiCl
             )
         access_token = refreshed.access_token
 
-    return ExtendedSpotifyApiClient(access_token=access_token)
+    async def refresh_after_unauthorized() -> str | None:
+        refreshed = await RefreshSpotifyAccessTokenUseCase(repository=repo).execute(
+            user_id
+        )
+        return refreshed.access_token if refreshed else None
+
+    return ExtendedSpotifyApiClient(
+        access_token=access_token,
+        refresh_access_token=refresh_after_unauthorized,
+    )
 
 
 @router.post(

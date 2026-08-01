@@ -208,7 +208,7 @@ class TestTimeout:
 
         messages = [{"role": "user", "content": "test"}]
         start = time.monotonic()
-        parsed, model, attempts = manager.generate(messages)
+        parsed, _model, _attempts = manager.generate(messages)
         elapsed = time.monotonic() - start
 
         assert elapsed < 5.0
@@ -284,7 +284,7 @@ class TestRetryStrategy:
         manager._injected_client = client
 
         messages = [{"role": "user", "content": "test"}]
-        parsed, model, attempts = manager.generate(messages)
+        parsed, _model, _attempts = manager.generate(messages)
         assert parsed is not None
         assert client.call_count == 2
 
@@ -608,7 +608,7 @@ class TestValidatorRejection:
             manager._injected_client = LogClient()
 
             messages = [{"role": "user", "content": "test"}]
-            parsed, model, _ = manager.generate(messages)
+            parsed, _model, _ = manager.generate(messages)
             assert parsed is not None
         finally:
             settings.LLM_LOG_RAW_RESPONSES = original

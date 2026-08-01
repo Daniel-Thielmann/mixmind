@@ -46,7 +46,10 @@ class RefreshSpotifyAccessTokenUseCase:
             return await self._execute_refresh(user_id)
 
     async def _execute_refresh(self, user_id: str) -> SpotifyConnection | None:
-        connection = self._repository.find_by_user_id(user_id)
+        repository = self._repository
+        if repository is None:
+            return None
+        connection = repository.find_by_user_id(user_id)
         if not connection:
             return None
 
@@ -59,7 +62,7 @@ class RefreshSpotifyAccessTokenUseCase:
 
         if not connection.refresh_token:
             logger.warning("No refresh token available for user %s", user_id)
-            self._repository.mark_reauthorization_required(user_id)
+            repository.mark_reauthorization_required(user_id)
             return None
 
         try:
@@ -71,7 +74,7 @@ class RefreshSpotifyAccessTokenUseCase:
                 logger.warning(
                     "Spotify refresh token expired or revoked for user %s", user_id
                 )
-                self._repository.mark_reauthorization_required(user_id)
+                repository.mark_reauthorization_required(user_id)
                 return None
             logger.error(
                 "Spotify token refresh grant error for user %s: %s", user_id, exc.error
@@ -87,6 +90,6 @@ class RefreshSpotifyAccessTokenUseCase:
         if token_response.refresh_token:
             connection.refresh_token = token_response.refresh_token
 
-        connection = self._repository.save(connection)
+        connection = repository.save(connection)
         logger.info("Refreshed Spotify token for user %s", user_id)
         return connection

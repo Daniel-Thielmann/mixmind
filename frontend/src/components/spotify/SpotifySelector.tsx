@@ -1,6 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useRef, useState } from "react";
+import Image from "next/image";
 import {
   AlertCircle,
   ChevronDown,
@@ -22,6 +23,7 @@ import type {
 } from "@/types/spotify";
 
 interface SpotifySelectorProps {
+  spotifyUserId?: string | null;
   selectedTrackA: SpotifySelectedTrack | null;
   selectedTrackB: SpotifySelectedTrack | null;
   onSelectTrack: (track: SpotifySelectedTrack) => void;
@@ -30,6 +32,8 @@ interface SpotifySelectorProps {
 }
 
 const SEARCH_LIMIT = 10;
+const PLAYLIST_LIMIT = 50;
+const TRACK_LIMIT = 50;
 
 function extractTrackFromItem(
   item: Record<string, unknown>,
@@ -57,6 +61,7 @@ function extractTrackFromItem(
 }
 
 export function SpotifySelector({
+  spotifyUserId = null,
   selectedTrackA,
   selectedTrackB,
   onSelectTrack,
@@ -76,48 +81,53 @@ export function SpotifySelector({
   const [selectedPlaylistId, setSelectedPlaylistId] = useState<string | null>(null);
   const [playlistTotal, setTotal] = useState(0);
   const [playlistOffset, setPlaylistOffset] = useState(0);
-  const [spotifyUserId, setSpotifyUserId] = useState<string | null>(null);
-  const initialLoadDone = useRef(false);
-  const loadingRef = useRef(false);
+  const loadAbortRef = useRef<AbortController | null>(null);
   const searchAbortRef = useRef<AbortController | null>(null);
   const lastSearchRef = useRef<string>("");
   const searchCounterRef = useRef(0);
-
-  const limit = 20;
 
   function extractPlaylists(paging: SpotifyPaging): SpotifyPlaylistSummary[] {
     return (paging.items ?? []) as unknown as SpotifyPlaylistSummary[];
   }
 
   const loadData = useCallback(async () => {
-    if (loadingRef.current) return;
-    loadingRef.current = true;
+    loadAbortRef.current?.abort();
+    const controller = new AbortController();
+    loadAbortRef.current = controller;
     setLoading(true);
     setError(null);
 
     try {
       if (source === "playlists" && !selectedPlaylistId) {
-        const data = await fetchSpotifyData<SpotifyPaging>("playlists", {
-          limit: String(limit),
-          offset: String(playlistOffset),
-        });
-        const allPlaylists = extractPlaylists(data);
-        if (spotifyUserId) {
-          setPlaylists(
-            allPlaylists.filter(
-              (p) => p.owner.id === spotifyUserId || p.collaborative === true,
-            ),
-          );
-        } else {
-          setPlaylists(allPlaylists);
+        const firstPage = await fetchSpotifyData<SpotifyPaging>("playlists", {
+          limit: String(PLAYLIST_LIMIT),
+          offset: "0",
+        }, controller.signal);
+        const allPlaylists = extractPlaylists(firstPage);
+
+        for (
+          let offset = PLAYLIST_LIMIT;
+          offset < firstPage.total;
+          offset += PLAYLIST_LIMIT
+        ) {
+          const page = await fetchSpotifyData<SpotifyPaging>("playlists", {
+            limit: String(PLAYLIST_LIMIT),
+            offset: String(offset),
+          }, controller.signal);
+          allPlaylists.push(...extractPlaylists(page));
         }
-        setTotal(data.total);
+
+        const ownedPlaylists = spotifyUserId
+          ? allPlaylists.filter((playlist) => playlist.owner.id === spotifyUserId)
+          : allPlaylists;
+        setPlaylists(ownedPlaylists);
+        setTotal(ownedPlaylists.length);
       } else if (selectedPlaylistId) {
         const data = await fetchSpotifyData<SpotifyPaging>("playlist-tracks", {
           playlist_id: selectedPlaylistId,
-          limit: String(limit),
+          limit: String(TRACK_LIMIT),
           offset: String(playlistOffset),
-        });
+        }, controller.signal);
         const extracted = data.items
           .map((item) => extractTrackFromItem(item, "track_a"))
           .filter((t): t is SpotifySelectedTrack => t !== null);
@@ -125,9 +135,9 @@ export function SpotifySelector({
         setTotal(data.total);
       } else if (source === "saved") {
         const data = await fetchSpotifyData<SpotifyPaging>("saved-tracks", {
-          limit: String(limit),
+          limit: String(TRACK_LIMIT),
           offset: String(playlistOffset),
-        });
+        }, controller.signal);
         const extracted = data.items
           .map((item) => extractTrackFromItem(item, "track_a"))
           .filter((t): t is SpotifySelectedTrack => t !== null);
@@ -135,6 +145,7 @@ export function SpotifySelector({
         setTotal(data.total);
       }
     } catch (cause) {
+      if (controller.signal.aborted) return;
       const msg = cause instanceof Error ? cause.message : "Failed to load Spotify data";
       if (msg.includes("cannot be accessed") || msg.includes("403")) {
         setError(
@@ -145,42 +156,22 @@ export function SpotifySelector({
         setError(msg);
       }
     } finally {
-      loadingRef.current = false;
-      setLoading(false);
+      if (loadAbortRef.current === controller) {
+        loadAbortRef.current = null;
+        setLoading(false);
+      }
     }
   }, [source, selectedPlaylistId, playlistOffset, spotifyUserId]);
 
   useEffect(() => {
-    if (source !== "search") {
-      void loadData();
-    }
+    const timer = window.setTimeout(() => {
+      if (source !== "search") void loadData();
+    }, 0);
+    return () => {
+      window.clearTimeout(timer);
+      loadAbortRef.current?.abort();
+    };
   }, [loadData, source]);
-
-  useEffect(() => {
-    async function fetchUserId() {
-      try {
-        const statusRes = await fetch("/api/integrations/spotify?action=status", { cache: "no-store" });
-        if (statusRes.ok) {
-          const statusData = (await statusRes.json()) as { spotify_user_id?: string };
-          if (statusData.spotify_user_id) {
-            setSpotifyUserId(statusData.spotify_user_id);
-          }
-        }
-      } catch {
-        // non-critical
-      }
-    }
-    if (!initialLoadDone.current) {
-      initialLoadDone.current = true;
-      void fetchUserId();
-    }
-  }, []);
-
-  useEffect(() => {
-    if (source === "search") {
-      setLoading(false);
-    }
-  }, [source]);
 
   function handleSelectPlaylist(playlist: SpotifyPlaylistSummary) {
     setSelectedPlaylistId(playlist.id);
@@ -209,6 +200,8 @@ export function SpotifySelector({
     setSearchLoadingMore(false);
     if (newSource !== "search") {
       setSearchQuery("");
+    } else {
+      setLoading(false);
     }
   }
 
@@ -240,8 +233,16 @@ export function SpotifySelector({
 
     try {
       const targetOffset = append ? searchOffset + SEARCH_LIMIT : 0;
-      const params: Record<string, string> = { q: trimmed, offset: String(targetOffset) };
-      const data = await fetchSpotifyData<SpotifyPaging>("search", params);
+      const params: Record<string, string> = {
+        q: trimmed,
+        limit: String(SEARCH_LIMIT),
+        offset: String(targetOffset),
+      };
+      const data = await fetchSpotifyData<SpotifyPaging>(
+        "search",
+        params,
+        controller.signal,
+      );
 
       if (controller.signal.aborted) return;
       if (counter !== searchCounterRef.current) return;
@@ -280,13 +281,6 @@ export function SpotifySelector({
 
   function handleLoadMore() {
     void performSearch(searchQuery, true);
-  }
-
-  function handleSearchKeyDown(e: React.KeyboardEvent<HTMLInputElement>) {
-    if (e.key === "Enter") {
-      e.preventDefault();
-      void performSearch(searchQuery, false);
-    }
   }
 
   return (
@@ -351,7 +345,6 @@ export function SpotifySelector({
             type="text"
             value={searchQuery}
             onChange={(e) => setSearchQuery(e.target.value)}
-            onKeyDown={handleSearchKeyDown}
             placeholder="Search by track, artist, or album..."
             minLength={2}
             className="flex-1 rounded-xl border border-zinc-700 bg-zinc-900/70 px-4 py-2.5 text-sm text-text outline-none transition-colors placeholder:text-text-secondary/50 focus:border-primary/50"
@@ -392,27 +385,27 @@ export function SpotifySelector({
           <Loader2 className="h-6 w-6 animate-spin text-text-secondary" />
         </div>
       ) : error ? (
-        <div className="flex flex-col items-center gap-3 rounded-xl border border-danger/30 bg-danger/5 px-4 py-8 text-center">
-          <AlertCircle className="h-8 w-8 text-danger" />
+        <div role="alert" className="flex items-center justify-between gap-4 rounded-xl border border-danger/30 bg-danger/5 px-4 py-3">
+          <AlertCircle className="h-5 w-5 shrink-0 text-danger" />
           <p className="text-sm text-red-200">{error}</p>
           {source === "search" ? (
             <button
               onClick={() => void performSearch(searchQuery, false)}
-              className="flex items-center gap-1.5 rounded-lg bg-danger/15 px-3 py-1.5 text-xs font-medium text-danger transition-colors hover:bg-danger/25"
+              className="ml-auto flex shrink-0 items-center gap-1.5 rounded-lg bg-danger/15 px-3 py-1.5 text-xs font-medium text-danger transition-colors hover:bg-danger/25"
             >
               <RefreshCw className="h-3.5 w-3.5" /> Retry
             </button>
           ) : (
             <button
               onClick={() => void loadData()}
-              className="flex items-center gap-1.5 rounded-lg bg-danger/15 px-3 py-1.5 text-xs font-medium text-danger transition-colors hover:bg-danger/25"
+              className="ml-auto flex shrink-0 items-center gap-1.5 rounded-lg bg-danger/15 px-3 py-1.5 text-xs font-medium text-danger transition-colors hover:bg-danger/25"
             >
               <RefreshCw className="h-3.5 w-3.5" /> Retry
             </button>
           )}
         </div>
       ) : source === "playlists" && !selectedPlaylistId ? (
-        <div className="grid gap-2 sm:grid-cols-2">
+        <div className="grid max-h-[31rem] gap-2 overflow-y-auto pr-1 sm:grid-cols-2">
           {playlists.map((playlist) => (
             <button
               key={playlist.id}
@@ -420,9 +413,12 @@ export function SpotifySelector({
               className="flex items-center gap-3 rounded-xl border border-zinc-800 bg-card/50 p-3 text-left transition-all hover:border-zinc-700"
             >
               {playlist.images?.[0]?.url ? (
-                <img
+                <Image
                   src={playlist.images[0].url}
                   alt={playlist.name}
+                  width={48}
+                  height={48}
+                  unoptimized
                   className="h-12 w-12 flex-shrink-0 rounded-lg object-cover"
                 />
               ) : (
@@ -449,13 +445,13 @@ export function SpotifySelector({
           {playlists.length === 0 && (
             <p className="col-span-2 py-8 text-center text-sm text-text-secondary">
               {spotifyUserId
-                ? "No owned or collaborative playlists found. Only playlists you created or collaborate on can be used."
+                ? "No playlists owned by your Spotify account were found."
                 : "No playlists found."}
             </p>
           )}
         </div>
       ) : (
-        <div className="space-y-2">
+        <div className="max-h-[31rem] space-y-2 overflow-y-auto pr-1">
           {tracks.length === 0 && !loading ? (
             <p className="py-8 text-center text-sm text-text-secondary">
               {source === "search"
@@ -486,7 +482,6 @@ export function SpotifySelector({
                     }
                   }}
                   disabled={
-                    (selectedTrackA !== null && selectedTrackB !== null) ||
                     (selectedTrackA?.id === track.id) ||
                     (selectedTrackB?.id === track.id)
                   }
@@ -510,6 +505,32 @@ export function SpotifySelector({
               )}
             </>
           )}
+        </div>
+      )}
+
+      {source !== "search" &&
+        (selectedPlaylistId !== null || source === "saved") &&
+        playlistTotal > 0 && (
+        <div className="flex items-center justify-between border-t border-zinc-800 pt-3">
+          <button
+            type="button"
+            disabled={playlistOffset === 0 || loading}
+            onClick={() => setPlaylistOffset((value) => Math.max(0, value - (selectedPlaylistId || source === "saved" ? TRACK_LIMIT : PLAYLIST_LIMIT)))}
+            className="rounded-lg px-3 py-1.5 text-xs text-text-secondary hover:bg-zinc-800 disabled:opacity-40"
+          >
+            Previous
+          </button>
+          <span className="text-xs text-text-secondary">
+            {playlistOffset + 1}–{Math.min(playlistOffset + (selectedPlaylistId || source === "saved" ? TRACK_LIMIT : PLAYLIST_LIMIT), playlistTotal)} of {playlistTotal}
+          </span>
+          <button
+            type="button"
+            disabled={loading || playlistOffset + (selectedPlaylistId || source === "saved" ? TRACK_LIMIT : PLAYLIST_LIMIT) >= playlistTotal}
+            onClick={() => setPlaylistOffset((value) => value + (selectedPlaylistId || source === "saved" ? TRACK_LIMIT : PLAYLIST_LIMIT))}
+            className="rounded-lg px-3 py-1.5 text-xs text-text-secondary hover:bg-zinc-800 disabled:opacity-40"
+          >
+            Next
+          </button>
         </div>
       )}
     </div>

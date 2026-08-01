@@ -58,8 +58,9 @@ export function SpotifyLibrary() {
 
   useEffect(() => {
     const params = new URLSearchParams(window.location.search);
+    let nextCallbackMessage: string | null = null;
     if (params.get("spotify") === "connected") {
-      setCallbackMessage("Spotify connected successfully.");
+      nextCallbackMessage = "Spotify connected successfully.";
       const url = new URL(window.location.href);
       url.searchParams.delete("spotify");
       window.history.replaceState({}, "", url.toString());
@@ -70,13 +71,16 @@ export function SpotifyLibrary() {
         : msg === "missing_state"
           ? "Connection failed. Please try again."
           : `Connection failed: ${msg.replace(/_/g, " ")}`;
-      setCallbackMessage(friendly);
+      nextCallbackMessage = friendly;
       const url = new URL(window.location.href);
       url.searchParams.delete("spotify");
       url.searchParams.delete("message");
       window.history.replaceState({}, "", url.toString());
     }
-    const timer = window.setTimeout(() => void loadStatus(), 0);
+    const timer = window.setTimeout(() => {
+      if (nextCallbackMessage) setCallbackMessage(nextCallbackMessage);
+      void loadStatus();
+    }, 0);
     return () => window.clearTimeout(timer);
   }, [loadStatus]);
 
@@ -305,6 +309,7 @@ export function SpotifyLibrary() {
 
       <div className="p-4 md:p-6">
         <SpotifySelector
+          spotifyUserId={status?.spotify_user_id ?? null}
           selectedTrackA={spotifyTrackA}
           selectedTrackB={spotifyTrackB}
           onSelectTrack={handleSelectTrack}

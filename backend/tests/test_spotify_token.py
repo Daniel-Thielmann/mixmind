@@ -308,3 +308,26 @@ class TestRefreshTokenConcurrentRefresh:
         await asyncio.gather(run_user("u5"), run_user("u6"))
 
         assert oauth.refresh_access_token.call_count == 2
+
+
+class TestSpotifyOAuthReturnDestination:
+    def test_signed_state_preserves_internal_return_destination(self) -> None:
+        from types import SimpleNamespace
+        from unittest.mock import MagicMock
+
+        from app.application.use_cases.spotify.state_service import SpotifyStateService
+
+        repository = MagicMock()
+        repository.find_oauth_state.return_value = SimpleNamespace(
+            consumed=False,
+            expires_at=int(time.time()) + 600,
+            user_id="user-1",
+        )
+        repository.consume_oauth_state.return_value = True
+        service = SpotifyStateService(repository=repository)
+
+        state = service.create_state("user-1", "/analyzer?source=spotify")
+        context = service.validate_and_consume_state(state)
+
+        assert context == ("user-1", "/analyzer?source=spotify")
+        repository.create_oauth_state.assert_called_once()
