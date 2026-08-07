@@ -9,7 +9,7 @@ import { SpotifyStatusSummary } from "@/components/spotify/SpotifyStatusSummary"
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Alert, AlertDescription } from "@/components/ui/alert";
-import { Skeleton } from "@/components/ui/skeleton";
+import { Skeleton } from "@/components/ui/Skeleton";
 
 interface RecentTrack {
   id: string;
