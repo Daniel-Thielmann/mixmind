@@ -21,15 +21,18 @@ export function SpotifyIntegrationCard() {
   const [disconnecting, setDisconnecting] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
-  const loadStatus = useCallback(async () => {
+  const loadStatus = useCallback(async (): Promise<SpotifyStatus | null> => {
     setLoading(true);
     setError(null);
     try {
       const response = await fetch("/api/integrations/spotify?action=status", { cache: "no-store" });
       if (!response.ok) throw new Error("Failed to load status");
-      setStatus((await response.json()) as SpotifyStatus);
+      const nextStatus = (await response.json()) as SpotifyStatus;
+      setStatus(nextStatus);
+      return nextStatus;
     } catch (cause) {
       setError(cause instanceof Error ? cause.message : "Failed to load Spotify status");
+      return null;
     } finally {
       setLoading(false);
     }
@@ -37,20 +40,48 @@ export function SpotifyIntegrationCard() {
 
   useEffect(() => {
     const params = new URLSearchParams(window.location.search);
-    if (params.get("spotify") === "connected") {
-      const url = new URL(window.location.href);
-      url.searchParams.delete("spotify");
-      window.history.replaceState({}, "", url.toString());
-    }
-    const timer = window.setTimeout(() => void loadStatus(), 0);
-    return () => window.clearTimeout(timer);
+    const returnedFromSpotify = params.get("spotify") === "connected";
+    let cancelled = false;
+
+    const timer = window.setTimeout(() => {
+      void (async () => {
+        const nextStatus = await loadStatus();
+        if (cancelled) return;
+
+        if (
+          returnedFromSpotify &&
+          nextStatus?.connected &&
+          !nextStatus.needs_reauthorization
+        ) {
+          window.location.replace("/analyzer?source=spotify");
+          return;
+        }
+
+        if (returnedFromSpotify) {
+          const url = new URL(window.location.href);
+          url.searchParams.delete("spotify");
+          window.history.replaceState({}, "", url.toString());
+        }
+      })();
+    }, 0);
+
+    return () => {
+      cancelled = true;
+      window.clearTimeout(timer);
+    };
   }, [loadStatus]);
 
   const handleConnect = useCallback(async () => {
     setConnecting(true);
     setError(null);
     try {
-      const response = await fetch("/api/integrations/spotify?action=connect", { cache: "no-store" });
+      const params = new URLSearchParams({
+        action: "connect",
+        return_to: "/analyzer?source=spotify",
+      });
+      const response = await fetch(`/api/integrations/spotify?${params}`, {
+        cache: "no-store",
+      });
       if (!response.ok) throw new Error("Failed to start connection");
       const data = (await response.json()) as { authorization_url?: string };
       if (data.authorization_url) {

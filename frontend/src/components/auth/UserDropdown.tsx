@@ -45,7 +45,7 @@ export function UserDropdown() {
         </span>
       </button>
       </DropdownMenuTrigger>
-      <DropdownMenuContent align="end" className="w-60">
+      <DropdownMenuContent align="end" side="bottom" sideOffset={10} className="w-60">
               <div className="px-3 py-3">
                 <div className="flex items-center gap-3">
                   <UserAvatar name={user.name} image={user.image} />
