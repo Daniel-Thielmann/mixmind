@@ -165,10 +165,10 @@ class ExternalProviderRateLimitError(AppError):
 
 async def global_exception_handler(request: Request, exc: Exception) -> JSONResponse:
     logger.error(
-        "Unhandled exception | path=%s | method=%s | error=%s",
+        "Unhandled exception | path=%s | method=%s | error_type=%s",
         request.url.path,
         request.method,
-        str(exc),
+        type(exc).__name__,
     )
     logger.debug(
         "Traceback:\n%s",

@@ -25,6 +25,16 @@ logger = logging.getLogger(__name__)
 _CHUNK_SIZE = 256 * 1024
 _MAX_SIZE_BYTES: int = 200 * 1024 * 1024
 _ALLOWED_SCHEMES = frozenset({"http", "https"})
+_DOWNLOAD_HEADERS = {
+    "User-Agent": (
+        "Mozilla/5.0 (Windows NT 10.0; Win64; x64) "
+        "AppleWebKit/537.36 (KHTML, like Gecko) "
+        "Chrome/140.0.0.0 Safari/537.36"
+    ),
+    "Accept": "audio/mpeg,audio/*;q=0.9,*/*;q=0.8",
+    "Accept-Language": "en-US,en;q=0.9",
+    "Referer": "https://spotifydown.com/",
+}
 
 
 class RapidApiSpotifyDownloaderProvider:
@@ -138,12 +148,21 @@ class RapidApiSpotifyDownloaderProvider:
         total = 0
 
         try:
-            with httpx.Client(timeout=self._timeout, follow_redirects=True) as client:
+            with httpx.Client(
+                timeout=self._timeout,
+                follow_redirects=True,
+                headers=_DOWNLOAD_HEADERS,
+            ) as client:
                 with client.stream("GET", download_url) as response:
                     if response.status_code != 200:
-                        raise AudioProviderUnavailableError(
-                            detail=f"Download returned status {response.status_code}."
+                        from urllib.parse import urlparse
+
+                        logger.warning(
+                            "Audio CDN rejected download | host=%s | status=%d",
+                            urlparse(download_url).hostname,
+                            response.status_code,
                         )
+                        raise AudioProviderUnavailableError()
                     content_type: str = (
                         response.headers.get("content-type", "audio/mpeg")
                         or "audio/mpeg"

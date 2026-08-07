@@ -39,11 +39,35 @@ class SqlAlchemySpotifyConnectionRepository(SpotifyConnectionRepository):
         return SpotifyConnectionMapper.to_domain(model) if model else None
 
     def save(self, connection: SpotifyConnection) -> SpotifyConnection:
-        existing = (
+        existing_for_user = (
             self._db.query(SpotifyConnectionModel)
             .filter(SpotifyConnectionModel.user_id == connection.user_id)
             .first()
         )
+        existing_for_spotify = (
+            self._db.query(SpotifyConnectionModel)
+            .filter(
+                SpotifyConnectionModel.spotify_user_id == connection.spotify_user_id
+            )
+            .first()
+        )
+
+        # A successful Spotify OAuth callback proves control of the Spotify
+        # account. If the MixMind identity changed (for example, Google to
+        # GitHub login), transfer the existing connection instead of violating
+        # the unique spotify_user_id constraint.
+        existing: SpotifyConnectionModel | None
+        if existing_for_spotify and (
+            not existing_for_user or existing_for_spotify.id != existing_for_user.id
+        ):
+            if existing_for_user:
+                self._db.delete(existing_for_user)
+                self._db.flush()
+            existing_for_spotify.user_id = connection.user_id
+            existing = existing_for_spotify
+        else:
+            existing = existing_for_user
+
         if existing:
             existing.spotify_user_id = connection.spotify_user_id
             existing.spotify_display_name = connection.spotify_display_name

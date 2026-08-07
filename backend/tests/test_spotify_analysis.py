@@ -273,6 +273,15 @@ class TestRapidApiDownloader:
         with pytest.raises(InvalidDownloadedAudioError):
             downloader._validate_download_url("file:///etc/passwd")
 
+    def test_download_headers_satisfy_provider_cdn_requirements(self) -> None:
+        from app.infrastructure.spotify.rapidapi_downloader import (
+            _DOWNLOAD_HEADERS,
+        )
+
+        assert _DOWNLOAD_HEADERS["User-Agent"].startswith("Mozilla/5.0")
+        assert _DOWNLOAD_HEADERS["Referer"] == "https://spotifydown.com/"
+        assert "audio/mpeg" in _DOWNLOAD_HEADERS["Accept"]
+
     # ------------------------------------------------------------------
     # typed parser using RapidApiDownloadResponse Pydantic model
     # ------------------------------------------------------------------
