@@ -4,6 +4,8 @@ import { motion } from "framer-motion";
 import { SectionWrapper } from "./SectionWrapper";
 import { MOCK_FEATURES } from "./mock-data";
 import { Sparkles, Music, Waves, Activity, Route, Timer } from "lucide-react";
+import { DepthCard } from "./scroll-motion";
+import { Card } from "@/components/ui/card";
 
 const ICON_MAP: Record<string, React.ElementType> = {
   Sparkles,
@@ -44,21 +46,19 @@ export function Features() {
           {MOCK_FEATURES.map((feature, index) => {
             const Icon = ICON_MAP[feature.icon] || Sparkles;
             return (
-              <motion.div
+              <DepthCard
                 key={feature.title}
-                initial={{ opacity: 0, y: 30 }}
-                whileInView={{ opacity: 1, y: 0 }}
-                viewport={{ once: true }}
-                transition={{ delay: index * 0.08, duration: 0.5, ease: [0.25, 0.1, 0.25, 1] as const }}
-                whileHover={{ y: -4 }}
-                className="group rounded-2xl border border-border bg-card p-6 transition-all duration-500 hover:border-primary/20 hover:bg-card-hover hover:shadow-lg hover:shadow-primary/5"
+                index={index}
+                className="group"
               >
+                <Card className="h-full rounded-2xl p-6 transition-colors hover:border-primary/20 hover:bg-card-hover hover:shadow-lg hover:shadow-primary/5">
                 <div className="mb-4 flex h-11 w-11 items-center justify-center rounded-xl bg-gradient-to-br from-primary/10 to-accent-blue/10 text-primary transition-all duration-300 group-hover:from-primary/20 group-hover:to-accent-blue/20">
                   <Icon size={20} />
                 </div>
                 <h3 className="mb-2 text-base font-semibold text-text">{feature.title}</h3>
                 <p className="text-sm leading-relaxed text-text-secondary">{feature.description}</p>
-              </motion.div>
+                </Card>
+              </DepthCard>
             );
           })}
         </div>

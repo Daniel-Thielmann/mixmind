@@ -10,6 +10,8 @@ import {
   Music4,
   Sparkles,
 } from "lucide-react";
+import { DepthCard } from "./scroll-motion";
+import { Card } from "@/components/ui/card";
 
 const ICON_MAP: Record<string, React.ElementType> = {
   Upload,
@@ -50,14 +52,12 @@ export function HowItWorks() {
             {HOW_IT_WORKS.map((step, index) => {
               const Icon = ICON_MAP[step.icon] || Upload;
               return (
-                <motion.div
+                <DepthCard
                   key={step.step}
-                  initial={{ opacity: 0, y: 40 }}
-                  whileInView={{ opacity: 1, y: 0 }}
-                  viewport={{ once: true }}
-                  transition={{ delay: index * 0.12, duration: 0.5, ease: [0.25, 0.1, 0.25, 1] as const }}
-                  className="group relative rounded-2xl border border-border bg-card p-6 transition-all duration-500 hover:border-primary/20 hover:bg-card-hover"
+                  index={index}
+                  className="group relative"
                 >
+                  <Card className="h-full rounded-2xl p-6 transition-colors hover:border-primary/20 hover:bg-card-hover">
                   <div className="mb-4 flex h-12 w-12 items-center justify-center rounded-xl bg-primary/10 text-primary transition-colors group-hover:bg-primary/20">
                     <Icon size={22} />
                   </div>
@@ -70,7 +70,8 @@ export function HowItWorks() {
                   <p className="text-xs leading-relaxed text-text-secondary">
                     {step.description}
                   </p>
-                </motion.div>
+                  </Card>
+                </DepthCard>
               );
             })}
           </div>

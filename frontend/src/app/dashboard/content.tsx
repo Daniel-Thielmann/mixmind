@@ -6,6 +6,10 @@ import { useAuth } from "@/hooks/useAuth";
 import Link from "next/link";
 import { BarChart3, Music, Activity, Sparkles, RefreshCw, ArrowRight, History, Settings } from "lucide-react";
 import { SpotifyStatusSummary } from "@/components/spotify/SpotifyStatusSummary";
+import { Button } from "@/components/ui/button";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Alert, AlertDescription } from "@/components/ui/alert";
+import { Skeleton } from "@/components/ui/skeleton";
 
 interface RecentTrack {
   id: string;
@@ -66,20 +70,18 @@ export function DashboardContent() {
             <p className="mt-1 text-text-secondary">Review your recent activity and start a new transition study.</p>
           </div>
           </div>
-          <Link href="/analyzer" className="inline-flex items-center justify-center gap-2 rounded-xl bg-primary px-5 py-3 text-sm font-semibold text-background shadow-lg shadow-primary/15 hover:bg-primary-dark">
-            Start new analysis <ArrowRight className="h-4 w-4" />
-          </Link>
+          <Button asChild size="lg"><Link href="/analyzer">Start new analysis <ArrowRight className="h-4 w-4" /></Link></Button>
         </div>
 
         {loading && <DashboardSkeleton />}
 
         {!loading && error && (
-          <div className="mt-8 rounded-xl border border-danger/40 bg-danger/10 p-6 text-sm text-red-200">
-            <p>{error}</p>
-            <button type="button" onClick={() => void load()} className="mt-4 inline-flex items-center gap-2 rounded-lg border border-danger/40 px-3 py-2">
+          <Alert variant="destructive" className="mt-8 p-6">
+            <AlertDescription>{error}</AlertDescription>
+            <Button type="button" variant="outline" size="sm" onClick={() => void load()} className="mt-4 border-destructive/40 text-destructive">
               <RefreshCw className="h-4 w-4" /> Try again
-            </button>
-          </div>
+            </Button>
+          </Alert>
         )}
 
         {!loading && !error && summary && (
@@ -91,17 +93,17 @@ export function DashboardContent() {
 
             <div className="mt-8 grid gap-4 lg:grid-cols-[1fr_1fr]">
               <SpotifyStatusSummary />
-              <section className="rounded-xl border border-border/50 bg-card/50 p-5" aria-labelledby="quick-actions-title">
+              <Card className="bg-card/50 p-5" aria-labelledby="quick-actions-title">
                 <h2 id="quick-actions-title" className="font-semibold text-text">Quick actions</h2>
                 <div className="mt-4 grid gap-2 sm:grid-cols-3">
                   <Link href="/analyzer" className="inline-flex items-center gap-2 rounded-lg bg-primary/10 px-3 py-2 text-sm text-primary hover:bg-primary/15"><Sparkles className="h-4 w-4" /> New analysis</Link>
                   <a href="#recent-activity" className="inline-flex items-center gap-2 rounded-lg bg-background/50 px-3 py-2 text-sm text-text-secondary hover:text-text"><History className="h-4 w-4" /> Recent activity</a>
                   <Link href="/dashboard/settings" className="inline-flex items-center gap-2 rounded-lg bg-background/50 px-3 py-2 text-sm text-text-secondary hover:text-text"><Settings className="h-4 w-4" /> Settings</Link>
                 </div>
-              </section>
+              </Card>
             </div>
 
-            <section id="recent-activity" className="mt-8 rounded-xl border border-border/50 bg-card/50 p-6 backdrop-blur-sm">
+            <Card id="recent-activity" className="mt-8 bg-card/50 p-6 backdrop-blur-sm">
               <div className="flex items-center justify-between">
                 <h2 className="text-lg font-semibold text-text">Recent activity</h2>
                 <Activity className="h-4 w-4 text-text-tertiary" />
@@ -125,7 +127,7 @@ export function DashboardContent() {
                   ))}
                 </div>
               )}
-            </section>
+            </Card>
           </motion.div>
         )}
       </div>
@@ -135,13 +137,10 @@ export function DashboardContent() {
 
 function StatCard({ label, value, icon: Icon }: { label: string; value: number; icon: typeof Music }) {
   return (
-    <div className="rounded-xl border border-border/50 bg-card/50 p-5">
-      <div className="flex items-center justify-between text-sm text-text-secondary"><span>{label}</span><Icon className="h-4 w-4" /></div>
-      <p className="mt-2 text-2xl font-semibold text-text">{value}</p>
-    </div>
+    <Card className="bg-card/50"><CardHeader className="flex-row items-center justify-between pb-2 text-sm text-muted-foreground"><CardTitle className="text-sm font-medium">{label}</CardTitle><Icon className="h-4 w-4" /></CardHeader><CardContent><p className="text-2xl font-semibold text-foreground">{value}</p></CardContent></Card>
   );
 }
 
 function DashboardSkeleton() {
-  return <div className="mt-8 grid animate-pulse gap-4 sm:grid-cols-2"><div className="h-28 rounded-xl bg-card" /><div className="h-28 rounded-xl bg-card" /></div>;
+  return <div className="mt-8 grid gap-4 sm:grid-cols-2"><Skeleton className="h-28 rounded-xl" /><Skeleton className="h-28 rounded-xl" /></div>;
 }

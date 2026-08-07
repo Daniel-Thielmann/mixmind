@@ -1,6 +1,6 @@
 <div align="center">
   <br/>
-  <img src="frontend/public/dash.gif" alt="MixMind home and Spotify analyzer flow" width="800" style="border-radius: 8px;"/>
+  <img src="https://yknudnlwdwelbdjwtlgc.supabase.co/storage/v1/object/public/mixmind-readme/readme/mixmind.gif" alt="MixMind home and Spotify analyzer flow" width="800" style="border-radius: 8px;"/>
   <br/><br/>
   <h1>MixMind</h1>
   <p><strong>AI-powered DJ Mixing Assistant</strong></p>
@@ -135,7 +135,7 @@ MixMind-AI/
 │   └── pyproject.toml
 ├── frontend/
 │   ├── src/
-│   ├── public/                 # Static assets (demo video, dash.gif, etc.)
+│   ├── public/                 # Static assets (demo video, images, etc.)
 │   ├── Dockerfile
 │   └── package.json
 ├── datasets/

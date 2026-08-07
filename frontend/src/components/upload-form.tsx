@@ -9,7 +9,7 @@ import { Dashboard } from "@/components/home/dashboard";
 import { SpotifyAnalyzerSource } from "@/components/spotify/SpotifyAnalyzerSource";
 import { UploadCard } from "@/components/upload/upload-card";
 import { LoadingSpinner } from "@/components/ui/loading-spinner";
-import { SkeletonGrid } from "@/components/ui/Skeleton";
+import { SkeletonGrid } from "@/components/ui/skeleton";
 import { loadSpotifyTracks, clearSpotifyTracks } from "@/lib/spotify-storage";
 import { apiService } from "@/services/api";
 import { analyzeSpotifyTracks } from "@/services/spotify-service";

@@ -12,6 +12,8 @@ import { AIAnalysisPanel } from "@/components/ai-analysis/AIAnalysisPanel";
 import { DEMO_METADATA } from "@/constants/video";
 import type { VideoState } from "@/types/video";
 import { useDemoMedia } from "@/hooks/useDemoMedia";
+import { DepthCard, ScrollReveal3D } from "./scroll-motion";
+import { Button } from "@/components/ui/button";
 
 type DemoState = "idle" | "processing" | "complete";
 
@@ -120,13 +122,13 @@ export function Demonstration() {
             ) : error ? (
               <div>
                 <p className="text-sm text-text-secondary">{error}</p>
-                <button
+                <Button variant="outline"
                   type="button"
                   onClick={() => void retry()}
-                  className="mt-4 rounded-lg border border-border px-4 py-2 text-sm text-text"
+                  className="mt-4"
                 >
                   Try again
-                </button>
+                </Button>
               </div>
             ) : (
               <p className="text-sm text-text-secondary">
@@ -148,9 +150,9 @@ export function Demonstration() {
                 className="mx-auto max-w-5xl space-y-8"
               >
                 <div className="grid gap-4 md:grid-cols-3">
-                  <TrackUploadCard {...tracks.a} />
-                  <TrackUploadCard {...tracks.b} />
-                  <TrackUploadCard {...tracks.c} />
+                  <DepthCard index={0}><TrackUploadCard {...tracks.a} /></DepthCard>
+                  <DepthCard index={1}><TrackUploadCard {...tracks.b} /></DepthCard>
+                  <DepthCard index={2}><TrackUploadCard {...tracks.c} /></DepthCard>
                 </div>
 
                 <motion.div
@@ -283,7 +285,7 @@ export function Demonstration() {
         >
           <div className="relative flex items-center gap-4">
             <div className="h-px flex-1 bg-linear-to-r from-transparent via-border/50 to-transparent" />
-            <span className="shrink-0 text-[10px] font-semibold uppercase tracking-[0.3em] text-text-tertiary">
+            <span className="max-w-[16rem] text-center text-[10px] font-semibold uppercase leading-relaxed tracking-[0.2em] text-text-tertiary sm:max-w-none sm:shrink-0 sm:tracking-[0.3em]">
               Watch a real transition analyzed by MixMind
             </span>
             <div className="h-px flex-1 bg-linear-to-r from-transparent via-border/50 to-transparent" />
@@ -291,12 +293,11 @@ export function Demonstration() {
         </motion.div>
 
         {/* Video analysis section */}
-        <motion.div
-          initial={{ opacity: 0, y: 30 }}
-          whileInView={{ opacity: 1, y: 0 }}
-          viewport={{ once: true }}
-          transition={{ duration: 0.6 }}
-          className="grid w-full items-start gap-8 xl:grid-cols-[56rem_minmax(0,1fr)]"
+        <div className="relative xl:min-h-[115vh]">
+        <ScrollReveal3D
+          depth={140}
+          rotateX={3}
+          className="grid w-full items-start gap-8 xl:sticky xl:top-24 xl:grid-cols-[56rem_minmax(0,1fr)]"
         >
           {manifest ? (
             <div className="w-full max-w-4xl" suppressHydrationWarning>
@@ -315,7 +316,8 @@ export function Demonstration() {
           <div>
             <AIAnalysisPanel currentTime={videoTime} isPlaying={videoPlaying} />
           </div>
-        </motion.div>
+        </ScrollReveal3D>
+        </div>
       </div>
     </SectionWrapper>
   );

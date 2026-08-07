@@ -1,20 +1,75 @@
 @import "tailwindcss";
 
+:root {
+  color-scheme: dark;
+  --background: #090b10;
+  --foreground: #f8fafc;
+  --card: #131722;
+  --card-foreground: #f8fafc;
+  --popover: #151a26;
+  --popover-foreground: #f8fafc;
+  --primary: #44f3d0;
+  --primary-foreground: #07110f;
+  --secondary: #1a2030;
+  --secondary-foreground: #f8fafc;
+  --muted: #171c28;
+  --muted-foreground: #98a4b7;
+  --accent: #20283a;
+  --accent-foreground: #f8fafc;
+  --destructive: #ff5b6e;
+  --destructive-foreground: #fff7f8;
+  --border: #263247;
+  --input: #334155;
+  --ring: #44f3d0;
+  --radius: 0.625rem;
+
+  --track-a: #44f3d0;
+  --track-b: #8b5cf6;
+  --transition: #3b82f6;
+  --analysis-success: #21d969;
+  --analysis-warning: #facc15;
+  --surface-elevated: #171c28;
+  --surface-subtle: #10141d;
+  --glow-primary: rgba(68, 243, 208, 0.2);
+  --glow-secondary: rgba(139, 92, 246, 0.16);
+}
+
 @theme {
-  --color-background: #090b10;
-  --color-card: #131722;
-  --color-card-hover: #1a2030;
-  --color-border: #1e293b;
-  --color-border-light: #334155;
-  --color-primary: #44f3d0;
+  --color-background: var(--background);
+  --color-foreground: var(--foreground);
+  --color-card: var(--card);
+  --color-card-foreground: var(--card-foreground);
+  --color-card-hover: var(--secondary);
+  --color-popover: var(--popover);
+  --color-popover-foreground: var(--popover-foreground);
+  --color-border: var(--border);
+  --color-border-light: var(--input);
+  --color-input: var(--input);
+  --color-ring: var(--ring);
+  --color-primary: var(--primary);
+  --color-primary-foreground: var(--primary-foreground);
   --color-primary-dark: #2bc9a8;
-  --color-success: #21d969;
-  --color-danger: #ff5b6e;
-  --color-text: #f8fafc;
-  --color-text-secondary: #98a4b7;
+  --color-secondary: var(--secondary);
+  --color-secondary-foreground: var(--secondary-foreground);
+  --color-muted: var(--muted);
+  --color-muted-foreground: var(--muted-foreground);
+  --color-accent: var(--accent);
+  --color-accent-foreground: var(--accent-foreground);
+  --color-destructive: var(--destructive);
+  --color-destructive-foreground: var(--destructive-foreground);
+  --color-success: var(--analysis-success);
+  --color-danger: var(--destructive);
+  --color-text: var(--foreground);
+  --color-text-secondary: var(--muted-foreground);
   --color-text-tertiary: #6b7a8f;
-  --color-accent-blue: #3b82f6;
-  --color-accent-purple: #8b5cf6;
+  --color-accent-blue: var(--transition);
+  --color-accent-purple: var(--track-b);
+  --color-track-a: var(--track-a);
+  --color-track-b: var(--track-b);
+  --color-transition: var(--transition);
+  --color-analysis-warning: var(--analysis-warning);
+  --color-surface-elevated: var(--surface-elevated);
+  --color-surface-subtle: var(--surface-subtle);
 
   --animate-glow: glow 4s ease-in-out infinite;
   --animate-float: float 6s ease-in-out infinite;
@@ -53,6 +108,24 @@ body {
   background-attachment: fixed;
 }
 
+* {
+  border-color: var(--border);
+}
+
+button,
+[role="button"],
+a,
+input,
+textarea,
+select {
+  -webkit-tap-highlight-color: transparent;
+}
+
+:focus-visible {
+  outline: 2px solid var(--ring);
+  outline-offset: 2px;
+}
+
 ::selection {
   background: rgba(68, 243, 208, 0.3);
   color: #f8fafc;
@@ -60,6 +133,16 @@ body {
 
 html {
   scroll-behavior: smooth;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  html { scroll-behavior: auto; }
+  *, *::before, *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    scroll-behavior: auto !important;
+    transition-duration: 0.01ms !important;
+  }
 }
 
 .timeline-waveform-bar {

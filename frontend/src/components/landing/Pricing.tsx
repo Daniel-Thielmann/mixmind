@@ -3,6 +3,9 @@
 import { motion } from "framer-motion";
 import { SectionWrapper } from "./SectionWrapper";
 import { Check } from "lucide-react";
+import { Badge } from "@/components/ui/badge";
+import { Button } from "@/components/ui/button";
+import { Card } from "@/components/ui/card";
 
 const PLANS = [
   {
@@ -102,8 +105,7 @@ export function Pricing() {
 
         <div className="grid gap-6 lg:grid-cols-4">
           {PLANS.map((plan, index) => (
-            <motion.div
-              key={plan.name}
+            <Card key={plan.name} className="overflow-visible rounded-2xl"><motion.div
               initial={{ opacity: 0, y: 30 }}
               whileInView={{ opacity: 1, y: 0 }}
               viewport={{ once: true }}
@@ -113,7 +115,7 @@ export function Pricing() {
                 ease: [0.25, 0.1, 0.25, 1],
               }}
               whileHover={{ y: -4 }}
-              className={`relative flex flex-col rounded-2xl border bg-card p-6 transition-all duration-500 ${
+              className={`relative flex h-full flex-col rounded-2xl p-6 transition-all duration-500 ${
                 plan.highlighted
                   ? "border-primary/30 shadow-lg shadow-primary/5"
                   : "border-border hover:border-border-light"
@@ -121,9 +123,9 @@ export function Pricing() {
             >
               {plan.badge && (
                 <div className="absolute -top-3 left-1/2 -translate-x-1/2">
-                  <span className="inline-block rounded-full bg-linear-to-r from-primary to-accent-blue px-3 py-1 text-[10px] font-semibold uppercase tracking-wider text-background">
+                  <Badge variant="premium" className="bg-linear-to-r from-primary to-accent-blue text-background">
                     {plan.badge}
-                  </span>
+                  </Badge>
                 </div>
               )}
 
@@ -155,19 +157,8 @@ export function Pricing() {
                 ))}
               </ul>
 
-              <motion.a
-                href="#"
-                whileHover={{ scale: 1.02 }}
-                whileTap={{ scale: 0.98 }}
-                className={`flex h-10 items-center justify-center rounded-lg text-sm font-medium transition-all duration-300 ${
-                  plan.highlighted
-                    ? "bg-primary text-background hover:bg-primary-dark shadow-sm shadow-primary/20"
-                    : "border border-border text-text-secondary hover:border-border-light hover:text-text"
-                }`}
-              >
-                {plan.cta}
-              </motion.a>
-            </motion.div>
+              <Button asChild variant={plan.highlighted ? "default" : "outline"}><motion.a href="#" whileHover={{ scale: 1.02 }} whileTap={{ scale: 0.98 }}>{plan.cta}</motion.a></Button>
+            </motion.div></Card>
           ))}
         </div>
       </div>

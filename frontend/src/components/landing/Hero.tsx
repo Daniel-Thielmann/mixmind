@@ -1,11 +1,13 @@
 "use client";
 
-import { motion } from "framer-motion";
+import { motion, useTransform } from "framer-motion";
 import { useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
 import { AuthDialog } from "@/components/auth/AuthDialog";
 import { useAuth } from "@/hooks/useAuth";
 import { FrequencyBars } from "./FrequencyBars";
+import { ScrollScene } from "./scroll-motion";
+import { Button } from "@/components/ui/button";
 
 const FADE_UP = {
   hidden: { opacity: 0, y: 30 },
@@ -27,12 +29,28 @@ export function Hero() {
   }
 
   return (
-    <section className="relative flex min-h-screen items-center justify-center overflow-hidden px-6 pb-20 pt-24">
+    <>
+      <ScrollScene className="flex min-h-screen items-center justify-center overflow-hidden px-6 pb-20 pt-24">
+        {({ smoothProgress, reducedMotion }) => <HeroScene smoothProgress={smoothProgress} reducedMotion={reducedMotion} startWithSpotify={startWithSpotify} />}
+      </ScrollScene>
+      <AuthDialog open={authOpen} onOpenChange={setAuthOpen} returnTo="/analyzer?source=spotify" />
+    </>
+  );
+}
+
+function HeroScene({ smoothProgress, reducedMotion, startWithSpotify }: { smoothProgress: import("framer-motion").MotionValue<number>; reducedMotion: boolean; startWithSpotify: () => void }) {
+  const textY = useTransform(smoothProgress, [0.35, 0.85], [0, reducedMotion ? 0 : -36]);
+  const textScale = useTransform(smoothProgress, [0.35, 0.85], [1, reducedMotion ? 1 : 0.97]);
+  const panelY = useTransform(smoothProgress, [0.15, 0.7], [reducedMotion ? 0 : 50, 0]);
+  const panelRotateY = useTransform(smoothProgress, [0.15, 0.7], [reducedMotion ? 0 : -7, 0]);
+  const panelRotateX = useTransform(smoothProgress, [0.15, 0.7], [reducedMotion ? 0 : 3, 0]);
+  const panelScale = useTransform(smoothProgress, [0.15, 0.75], [reducedMotion ? 1 : 0.94, 1]);
+  return <>
       <BackgroundEffects />
-      <Particles />
+      {!reducedMotion && <Particles />}
 
       <div className="relative z-10 mx-auto flex w-full max-w-7xl flex-col items-center gap-16 lg:flex-row lg:items-center">
-        <div className="flex-1 text-center lg:text-left">
+        <motion.div style={{ y: textY, scale: textScale }} className="flex-1 text-center lg:text-left">
           <motion.div
             initial={{ opacity: 0, y: 20 }}
             animate={{ opacity: 1, y: 0 }}
@@ -74,28 +92,21 @@ export function Hero() {
             animate="visible"
             className="mt-8 flex flex-col items-center gap-4 sm:flex-row lg:items-start"
           >
-            <motion.button
+            <Button
               type="button"
               onClick={startWithSpotify}
-              whileHover={{ scale: 1.02 }}
-              whileTap={{ scale: 0.98 }}
-              className="inline-flex h-12 items-center gap-2 rounded-xl bg-primary px-6 text-sm font-semibold text-background transition-all duration-300 hover:bg-primary-dark hover:shadow-lg hover:shadow-primary/20"
+              size="lg"
             >
               Try with Spotify
-            </motion.button>
-            <motion.a
-              href="/analyzer?source=manual"
-              whileHover={{ scale: 1.02 }}
-              whileTap={{ scale: 0.98 }}
-              className="inline-flex h-12 items-center gap-2 rounded-xl border border-border bg-card/50 px-6 text-sm font-medium text-text-secondary transition-all duration-300 hover:border-border-light hover:text-text"
-            >
+            </Button>
+            <Button asChild variant="outline" size="lg"><a href="/analyzer?source=manual">
               <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
                 <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4" />
                 <polyline points="17 8 12 3 7 8" />
                 <line x1="12" y1="3" x2="12" y2="15" />
               </svg>
               Upload audio files
-            </motion.a>
+            </a></Button>
           </motion.div>
 
           <motion.div
@@ -119,21 +130,16 @@ export function Hero() {
             <div className="hidden sm:block">✦ Free to try</div>
             <div className="hidden sm:block">✦ No account required</div>
           </motion.div>
-        </div>
+        </motion.div>
 
         <motion.div
-          custom={1}
-          variants={FADE_UP}
-          initial="hidden"
-          animate="visible"
+          style={{ y: panelY, rotateY: panelRotateY, rotateX: panelRotateX, scale: panelScale, transformPerspective: 1200 }}
           className="relative flex-1"
         >
           <HeroMockup />
         </motion.div>
       </div>
-      <AuthDialog open={authOpen} onOpenChange={setAuthOpen} returnTo="/analyzer?source=spotify" />
-    </section>
-  );
+    </>;
 }
 
 function HeroMockup() {

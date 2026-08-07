@@ -15,6 +15,10 @@ import { GoogleButton } from "./GoogleButton";
 import { GitHubButton } from "./GitHubButton";
 import { Mail, Lock, Loader2 } from "lucide-react";
 import { safeReturnTo } from "@/lib/safe-return-to";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import { Button } from "@/components/ui/button";
+import { Alert, AlertDescription } from "@/components/ui/alert";
 
 interface AuthDialogProps {
   open: boolean;
@@ -136,9 +140,7 @@ export function AuthDialog({ open, onOpenChange, returnTo }: AuthDialogProps) {
                 />
 
                 {error ? (
-                  <p role="alert" className="rounded-lg border border-danger/40 bg-danger/10 px-3 py-2 text-sm text-red-200">
-                    {error}
-                  </p>
+                  <Alert variant="destructive"><AlertDescription>{error}</AlertDescription></Alert>
                 ) : null}
               </motion.div>
 
@@ -153,37 +155,43 @@ export function AuthDialog({ open, onOpenChange, returnTo }: AuthDialogProps) {
                 </div>
                 <form onSubmit={handleEmailSignIn} className="flex flex-col gap-3">
                   <div className="relative">
+                    <Label htmlFor="auth-email" className="sr-only">Email</Label>
                     <Mail className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-text-tertiary" />
-                    <input
+                    <Input
+                      id="auth-email"
                       type="email"
                       placeholder="Email"
                       value={email}
                       onChange={(e) => setEmail(e.target.value)}
-                      className="w-full rounded-lg border border-border/50 bg-background/50 py-2.5 pl-10 pr-3 text-sm text-text placeholder:text-text-tertiary focus:border-primary/50 focus:outline-hidden"
+                      className="h-10 bg-background/50 pl-10"
+                      autoComplete="email"
                       required
                     />
                   </div>
                   <div className="relative">
+                    <Label htmlFor="auth-password" className="sr-only">Password</Label>
                     <Lock className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-text-tertiary" />
-                    <input
+                    <Input
+                      id="auth-password"
                       type="password"
                       placeholder="Password"
                       value={password}
                       onChange={(e) => setPassword(e.target.value)}
-                      className="w-full rounded-lg border border-border/50 bg-background/50 py-2.5 pl-10 pr-3 text-sm text-text placeholder:text-text-tertiary focus:border-primary/50 focus:outline-hidden"
+                      className="h-10 bg-background/50 pl-10"
+                      autoComplete="current-password"
                       required
                     />
                   </div>
-                  <button
+                  <Button
                     type="submit"
                     disabled={loading === "email"}
-                    className="inline-flex items-center justify-center gap-2 rounded-lg bg-primary px-4 py-2.5 text-sm font-medium text-background transition-opacity hover:opacity-90 disabled:opacity-50"
+                    className="w-full"
                   >
                     {loading === "email" ? (
                       <Loader2 className="h-4 w-4 animate-spin" />
                     ) : null}
                     Sign in with Email
-                  </button>
+                  </Button>
                 </form>
               </motion.div>
 

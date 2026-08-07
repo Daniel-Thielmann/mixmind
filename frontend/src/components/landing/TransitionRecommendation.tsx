@@ -1,7 +1,8 @@
 "use client";
 
-import { motion } from "framer-motion";
 import { SectionWrapper } from "./SectionWrapper";
+import { DepthCard, ScrollReveal3D } from "./scroll-motion";
+import { Card } from "@/components/ui/card";
 
 const THOUGHTS = [
   ["I found the cleanest opening.", "Track B begins after Track A releases its vocal phrase."],
@@ -21,15 +22,15 @@ export function TransitionRecommendation() {
         </div>
         <div className="mx-auto mt-16 max-w-3xl space-y-4">
           {THOUGHTS.map(([title, body], i) => (
-            <motion.div key={title} initial={{ opacity: 0, x: i % 2 ? 22 : -22 }} whileInView={{ opacity: 1, x: 0 }} viewport={{ once: true }} transition={{ delay: i * .13 }} className={`flex ${i % 2 ? "justify-end" : "justify-start"}`}>
-              <div className="max-w-xl rounded-2xl border border-border bg-card px-5 py-4">
+            <DepthCard key={title} index={i} className={`flex ${i % 2 ? "justify-end" : "justify-start"}`}>
+              <Card className="max-w-xl rounded-2xl px-5 py-4">
                 <p className="font-semibold text-text">{title}</p><p className="mt-1 text-sm leading-relaxed text-text-secondary">{body}</p>
-              </div>
-            </motion.div>
+              </Card>
+            </DepthCard>
           ))}
-          <motion.div initial={{ opacity: 0, scale: .96 }} whileInView={{ opacity: 1, scale: 1 }} viewport={{ once: true }} transition={{ delay: .65 }} className="mt-8 rounded-2xl border border-primary/25 bg-primary/5 p-6 text-center">
+          <ScrollReveal3D depth={120} className="mt-8 rounded-2xl border border-primary/25 bg-primary/5 p-6 text-center">
             <p className="text-xs uppercase tracking-[.2em] text-primary">Transition confidence</p><p className="mt-2 text-4xl font-bold text-text">92%</p><p className="mt-2 text-sm text-text-secondary">Smooth, musical and ready for the room.</p>
-          </motion.div>
+          </ScrollReveal3D>
         </div>
       </div>
     </SectionWrapper>

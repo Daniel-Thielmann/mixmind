@@ -1,8 +1,7 @@
 "use client";
 
-import { useCallback, useState } from "react";
+import { useCallback } from "react";
 import { useRouter } from "next/navigation";
-import { motion, AnimatePresence } from "framer-motion";
 import { useAuth } from "@/hooks/useAuth";
 import {
   LayoutDashboard,
@@ -17,16 +16,15 @@ import {
 } from "lucide-react";
 import { UserAvatar } from "./UserAvatar";
 import { PlanBadge } from "./PlanBadge";
+import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuLabel, DropdownMenuSeparator, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
 
 export function UserDropdown() {
   const { user, logout } = useAuth();
   const router = useRouter();
-  const [open, setOpen] = useState(false);
 
   const handleNavigation = useCallback(
     (path: string) => {
       router.push(path);
-      setOpen(false);
     },
     [router]
   );
@@ -34,34 +32,20 @@ export function UserDropdown() {
   if (!user) return null;
 
   return (
-    <div className="relative">
-      <button
-        onClick={() => setOpen(!open)}
+    <DropdownMenu>
+      <DropdownMenuTrigger asChild>
+      <button type="button" aria-label="Open user menu"
         className="group flex items-center gap-1.5 rounded-full outline-none focus-visible:ring-2 focus-visible:ring-primary/50"
       >
-        <motion.div whileHover={{ scale: 1.05 }} whileTap={{ scale: 0.95 }}>
+        <span className="transition-transform group-hover:scale-105">
           <UserAvatar name={user.name} image={user.image} />
-        </motion.div>
-        <motion.div
-          animate={{ rotate: open ? 180 : 0 }}
-          transition={{ duration: 0.2, ease: "easeInOut" }}
-          className="text-text-tertiary transition-colors group-hover:text-text"
-        >
+        </span>
+        <span className="text-text-tertiary transition-colors group-hover:text-text group-data-[state=open]:rotate-180">
           <ChevronDown className="h-4 w-4" />
-        </motion.div>
+        </span>
       </button>
-
-      <AnimatePresence>
-        {open && (
-          <>
-            <div className="fixed inset-0 z-40" onClick={() => setOpen(false)} />
-            <motion.div
-              initial={{ opacity: 0, scale: 0.95, y: -4 }}
-              animate={{ opacity: 1, scale: 1, y: 0 }}
-              exit={{ opacity: 0, scale: 0.95, y: -4 }}
-              transition={{ duration: 0.15, ease: "easeOut" }}
-              className="absolute right-0 top-full z-50 mt-2 w-60 overflow-hidden rounded-xl border border-border/50 bg-card/90 backdrop-blur-2xl p-1.5 shadow-2xl"
-            >
+      </DropdownMenuTrigger>
+      <DropdownMenuContent align="end" className="w-60">
               <div className="px-3 py-3">
                 <div className="flex items-center gap-3">
                   <UserAvatar name={user.name} image={user.image} />
@@ -78,9 +62,8 @@ export function UserDropdown() {
                 </div>
               </div>
 
-              <div className="mx-2 my-1.5 h-px bg-border/50" />
-
-              <div className="px-1.5 py-1 text-xs font-medium text-text-tertiary uppercase tracking-wider">Navigation</div>
+              <DropdownMenuSeparator />
+              <DropdownMenuLabel>Navigation</DropdownMenuLabel>
 
               {[
                 { label: "Dashboard", icon: LayoutDashboard, path: "/dashboard" },
@@ -88,46 +71,41 @@ export function UserDropdown() {
                 { label: "History", icon: History, path: "/dashboard/history" },
                 { label: "Favorites", icon: Heart, path: "/dashboard/favorites" },
               ].map((item) => (
-                <button
+                <DropdownMenuItem
                   key={item.path}
-                  onClick={() => handleNavigation(item.path)}
-                  className="flex w-full cursor-pointer items-center gap-2.5 rounded-lg px-3 py-2 text-sm text-text-secondary outline-none transition-colors hover:bg-card-hover hover:text-text"
+                  onSelect={() => handleNavigation(item.path)}
                 >
                   <item.icon className="h-4 w-4" />
                   {item.label}
-                </button>
+                </DropdownMenuItem>
               ))}
 
-              <div className="mx-2 my-1.5 h-px bg-border/50" />
+              <DropdownMenuSeparator />
 
               {[
                 { label: "Settings", icon: Settings, path: "/dashboard/settings" },
                 { label: "Billing", icon: CreditCard, path: "/dashboard/billing" },
                 { label: "API Keys", icon: Key, path: "/dashboard/api-keys" },
               ].map((item) => (
-                <button
+                <DropdownMenuItem
                   key={item.path}
-                  onClick={() => handleNavigation(item.path)}
-                  className="flex w-full cursor-pointer items-center gap-2.5 rounded-lg px-3 py-2 text-sm text-text-secondary outline-none transition-colors hover:bg-card-hover hover:text-text"
+                  onSelect={() => handleNavigation(item.path)}
                 >
                   <item.icon className="h-4 w-4" />
                   {item.label}
-                </button>
+                </DropdownMenuItem>
               ))}
 
-              <div className="mx-2 my-1.5 h-px bg-border/50" />
+              <DropdownMenuSeparator />
 
-              <button
-                onClick={() => { logout(); setOpen(false); }}
-                className="flex w-full cursor-pointer items-center gap-2.5 rounded-lg px-3 py-2 text-sm text-danger outline-none transition-colors hover:bg-danger/10"
+              <DropdownMenuItem
+                onSelect={() => void logout()}
+                className="text-destructive focus-visible:bg-destructive/10 focus-visible:text-destructive"
               >
                 <LogOut className="h-4 w-4" />
                 Logout
-              </button>
-            </motion.div>
-          </>
-        )}
-      </AnimatePresence>
-    </div>
+              </DropdownMenuItem>
+      </DropdownMenuContent>
+    </DropdownMenu>
   );
 }
