@@ -31,6 +31,7 @@
 - [Prerequisites](#prerequisites)
 - [Installation & Setup](#installation--setup)
 - [Usage](#usage)
+- [Spotify Integration](#spotify-integration)
 - [Data Pipeline & Machine Learning Models](#data-pipeline--machine-learning-models)
 - [Scientific & Theoretical Context](#scientific--theoretical-context)
 - [Contributing](#contributing)
@@ -274,6 +275,125 @@ bash backend/scripts/extract-demo.sh \
 ```
 
 The script downloads the full video, extracts a 164-second segment at 1920×1080, and generates poster / thumbnail images plus `metadata.json`.
+
+---
+
+## Spotify Integration
+
+MixMind supports an end-to-end Spotify workflow inside the Analyzer. Users can connect their account, select two tracks and run the same compatibility, DSP and AI recommendation pipeline used for uploaded audio files.
+
+### Selection Sources
+
+| Source | Behavior |
+| ------ | -------- |
+| **Owned Playlists** | Loads playlists owned by the connected Spotify account and supports paginated track browsing |
+| **Saved Tracks** | Loads tracks saved in the user's Spotify library |
+| **Search** | Searches the Spotify catalog for a specific track without requiring playlist access |
+
+Followed playlists are intentionally excluded from the selector because Spotify does not expose their tracks through the API for this workflow. This keeps the interface focused on sources that can be browsed and analyzed successfully.
+
+### OAuth Connection Flow
+
+```text
+Analyzer
+  ↓
+Next.js BFF
+  ↓
+FastAPI Spotify integration
+  ↓
+Spotify authorization
+  ↓
+Signed callback state validation
+  ↓
+Persistent connection in PostgreSQL
+  ↓
+Return to the original Analyzer destination
+```
+
+The OAuth state is signed, single-use and stored with an expiration time. Redirect destinations are restricted to known internal routes, preventing arbitrary callback redirects while preserving the user's original destination.
+
+Access tokens are refreshed automatically before expiration. If Spotify returns `401 Unauthorized`, the backend performs one synchronized refresh and retries the request once. A successful new authorization can also safely transfer an existing Spotify connection when the same Spotify account is used with a different MixMind login identity.
+
+### Spotify Analysis Pipeline
+
+```text
+Track A + Track B Spotify IDs
+  ↓
+Spotify metadata and duration
+  ↓
+External audio acquisition
+  ↓
+Content type, size and payload validation
+  ↓
+FFmpeg normalization when required
+  ↓
+Audio duration validation
+  ↓
+DSP and compatibility analysis
+  ↓
+AI transition recommendation
+  ↓
+Temporary file cleanup
+```
+
+The Spotify Web API provides catalog metadata but not the audio file required by the DSP pipeline. MixMind therefore uses a separately configured audio provider, validates the returned payload and rejects HTML, JSON, empty, oversized or duration-incompatible downloads before analysis.
+
+### Required Backend Configuration
+
+```bash
+# Spotify OAuth application
+SPOTIFY_CLIENT_ID=[spotify-client-id]
+SPOTIFY_CLIENT_SECRET=[spotify-client-secret]
+SPOTIFY_REDIRECT_URI=http://127.0.0.1:8000/api/v1/integrations/spotify/callback
+SPOTIFY_SCOPES="user-read-private user-read-email playlist-read-private playlist-read-collaborative user-library-read"
+
+# Frontend destination and trusted BFF authentication
+FRONTEND_URL=http://127.0.0.1:3000
+INTERNAL_AUTH_SECRET=[shared-secret]
+
+# Audio acquisition provider
+RAPIDAPI_KEY=[rapidapi-key]
+RAPIDAPI_SPOTIFY_DOWNLOADER_HOST=spotify-downloader9.p.rapidapi.com
+RAPIDAPI_SPOTIFY_DOWNLOADER_BASE_URL=https://spotify-downloader9.p.rapidapi.com
+RAPIDAPI_DOWNLOAD_TIMEOUT=60
+RAPIDAPI_DOWNLOAD_MAX_SIZE=200
+RAPIDAPI_REQUEST_TIMEOUT=30
+```
+
+### Required Frontend Configuration
+
+```bash
+# Browser and server-side backend destinations
+NEXT_PUBLIC_API_URL=http://127.0.0.1:8000
+BACKEND_API_URL=http://backend:8000
+
+# Must match the backend value exactly
+INTERNAL_AUTH_SECRET=[shared-secret]
+
+# BFF timeout budgets
+BACKEND_STATUS_TIMEOUT_MS=10000
+BACKEND_SPOTIFY_TIMEOUT_MS=35000
+BACKEND_ANALYSIS_TIMEOUT_MS=120000
+```
+
+For production, replace local addresses with the public frontend and backend HTTPS URLs. The exact value configured in `SPOTIFY_REDIRECT_URI` must also be registered as a Redirect URI in the Spotify Developer Dashboard.
+
+| Environment | Spotify Redirect URI |
+| ----------- | -------------------- |
+| **Local** | `http://127.0.0.1:8000/api/v1/integrations/spotify/callback` |
+| **Production** | `https://[backend-domain]/api/v1/integrations/spotify/callback` |
+
+`INTERNAL_AUTH_SECRET` must contain the same strong value in the frontend and backend environments. Spotify credentials and RapidAPI keys are server-side secrets and must never be exposed through `NEXT_PUBLIC_*` variables or committed to the repository.
+
+### Reliability and Error Handling
+
+- Spotify library requests use explicit timeouts, pagination and request cancellation.
+- Token refresh is synchronized per user to avoid duplicate concurrent refreshes.
+- Owned playlists are filtered across all playlist pages before rendering.
+- Provider URLs are downloaded with redirect support and CDN-compatible request headers.
+- Temporary audio is removed after success or failure.
+- Provider failures, invalid audio and duration mismatches return user-facing errors without exposing credentials or raw upstream responses.
+- Reauthorization is requested when the refresh token is revoked, missing or no longer grants the required scopes.
 
 ---
 
