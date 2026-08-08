@@ -10,14 +10,15 @@ const DropdownMenuTrigger = DropdownMenuPrimitive.Trigger;
 const DropdownMenuContent = forwardRef<
   React.ComponentRef<typeof DropdownMenuPrimitive.Content>,
   React.ComponentPropsWithoutRef<typeof DropdownMenuPrimitive.Content>
->(({ className, sideOffset = 8, ...props }, ref) => (
+>(({ className, sideOffset = 8, style, ...props }, ref) => (
   <DropdownMenuPrimitive.Portal>
     <DropdownMenuPrimitive.Content
       ref={ref}
       sideOffset={sideOffset}
       collisionPadding={12}
+      style={{ zIndex: 1000, ...style }}
       className={cn(
-        "z-[100] min-w-[14rem] overflow-hidden rounded-xl border border-border/50 bg-card/95 p-1.5 shadow-2xl backdrop-blur-2xl",
+        "min-w-[14rem] overflow-hidden rounded-xl border border-border bg-card p-1.5 text-text shadow-2xl",
         "data-[state=open]:animate-in data-[state=closed]:animate-out",
         "data-[state=closed]:fade-out-0 data-[state=open]:fade-in-0",
         "data-[state=closed]:zoom-out-95 data-[state=open]:zoom-in-95",

@@ -35,12 +35,12 @@ export function UserDropdown() {
     <DropdownMenu>
       <DropdownMenuTrigger asChild>
       <button type="button" aria-label="Open user menu"
-        className="group flex items-center gap-1.5 rounded-full outline-none focus-visible:ring-2 focus-visible:ring-primary/50"
+        className="group flex items-center gap-1.5 rounded-full outline-none focus-visible:ring-2 focus-visible:ring-primary/50 data-[state=open]:ring-2 data-[state=open]:ring-primary/70"
       >
         <span className="transition-transform group-hover:scale-105">
           <UserAvatar name={user.name} image={user.image} />
         </span>
-        <span className="text-text-tertiary transition-colors group-hover:text-text group-data-[state=open]:rotate-180">
+        <span className="text-text-tertiary transition-transform group-hover:text-text group-data-[state=open]:rotate-180">
           <ChevronDown className="h-4 w-4" />
         </span>
       </button>
