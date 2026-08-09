@@ -367,7 +367,7 @@ class TestRapidApiDownloader:
         ):
             downloader._parse_download_response({"not_a_url": "something"})
 
-    def test_parse_unknown_extra_field_rejected(self, tmp_path: Path) -> None:
+    def test_parse_unknown_extra_field_is_ignored(self, tmp_path: Path) -> None:
         from app.infrastructure.spotify.rapidapi_downloader import (
             RapidApiSpotifyDownloaderProvider,
         )
@@ -378,17 +378,60 @@ class TestRapidApiDownloader:
             base_url="https://host.com",
             temp_dir=tmp_path,
         )
-        with pytest.raises(
-            InvalidDownloadedAudioError,
-            match=r"Invalid response format from audio provider.",
-        ):
-            downloader._parse_download_response(
+        result = downloader._parse_download_response(
+            {
+                "success": True,
+                "data": {
+                    "downloadLink": "https://ok.com/track.mp3",
+                    "providerMetadata": "new-field",
+                },
+                "unknown_field": "should_not_break_existing_clients",
+            }
+        )
+        assert result == "https://ok.com/track.mp3"
+
+    @pytest.mark.parametrize(
+        ("payload", "expected"),
+        [
+            (
                 {
-                    "success": True,
-                    "data": {"downloadLink": "https://ok.com/track.mp3"},
-                    "unknown_field": "should_not_be_here",
-                }
-            )
+                    "status": "success",
+                    "result": {"downloadUrl": "https://ok.com/a.mp3"},
+                },
+                "https://ok.com/a.mp3",
+            ),
+            (
+                {"success": 1, "data": {"download_url": "https://ok.com/b.mp3"}},
+                "https://ok.com/b.mp3",
+            ),
+            (
+                {"success": True, "url": "https://ok.com/c.mp3"},
+                "https://ok.com/c.mp3",
+            ),
+            (
+                {"status": 200, "data": "https://ok.com/d.mp3"},
+                "https://ok.com/d.mp3",
+            ),
+        ],
+    )
+    def test_parse_supported_provider_response_variants(
+        self,
+        tmp_path: Path,
+        payload: dict[str, object],
+        expected: str,
+    ) -> None:
+        from app.infrastructure.spotify.rapidapi_downloader import (
+            RapidApiSpotifyDownloaderProvider,
+        )
+
+        downloader = RapidApiSpotifyDownloaderProvider(
+            api_key="key",
+            api_host="host.com",
+            base_url="https://host.com",
+            temp_dir=tmp_path,
+        )
+
+        assert downloader._parse_download_response(payload) == expected
 
 
 class TestSpotifyAnalysisService:

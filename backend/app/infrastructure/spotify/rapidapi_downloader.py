@@ -25,6 +25,21 @@ logger = logging.getLogger(__name__)
 _CHUNK_SIZE = 256 * 1024
 _MAX_SIZE_BYTES: int = 200 * 1024 * 1024
 _ALLOWED_SCHEMES = frozenset({"http", "https"})
+_RECOGNIZED_RESPONSE_KEYS = frozenset(
+    {
+        "success",
+        "status",
+        "data",
+        "result",
+        "downloadLink",
+        "downloadUrl",
+        "download_url",
+        "url",
+        "link",
+        "message",
+        "error",
+    }
+)
 _DOWNLOAD_HEADERS = {
     "User-Agent": (
         "Mozilla/5.0 (Windows NT 10.0; Win64; x64) "
@@ -117,23 +132,52 @@ class RapidApiSpotifyDownloaderProvider:
         return parsed
 
     def _parse_download_response(self, data: dict[str, object]) -> str:
+        if not _RECOGNIZED_RESPONSE_KEYS.intersection(data):
+            logger.warning(
+                "Unexpected audio provider response shape | root_keys=%s",
+                sorted(data.keys()),
+            )
+            raise InvalidDownloadedAudioError(
+                detail="Invalid response format from audio provider."
+            )
+
         try:
             parsed = RapidApiDownloadResponse.model_validate(data)
         except ValidationError as exc:
+            nested = data.get("data") or data.get("result")
+            logger.warning(
+                "Unexpected audio provider response shape | root_keys=%s | nested_keys=%s",
+                sorted(data.keys()),
+                sorted(nested.keys()) if isinstance(nested, dict) else [],
+            )
             raise InvalidDownloadedAudioError(
                 detail="Invalid response format from audio provider."
             ) from exc
 
-        if not parsed.success:
+        if not self._provider_reported_success(parsed.success):
             message = parsed.message or "Unknown error"
             raise AudioDownloadNotFoundError(detail=message)
 
-        if parsed.data is None or not parsed.data.download_link:
+        download_link = parsed.download_link
+        if isinstance(parsed.data, str):
+            download_link = download_link or parsed.data
+        elif parsed.data is not None:
+            download_link = download_link or parsed.data.download_link
+
+        if not download_link:
             raise AudioDownloadNotFoundError(
                 detail="Download URL not found in provider response."
             )
 
-        return parsed.data.download_link
+        return download_link
+
+    @staticmethod
+    def _provider_reported_success(value: bool | str | int) -> bool:
+        if isinstance(value, bool):
+            return value
+        if isinstance(value, int):
+            return value == 1 or 200 <= value < 300
+        return value.strip().lower() in {"true", "success", "ok", "1", "200"}
 
     def _download_file(
         self, download_url: str, track_metadata: SpotifyTrackMetadata
