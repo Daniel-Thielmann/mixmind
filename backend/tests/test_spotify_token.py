@@ -4,9 +4,64 @@ import asyncio
 import time
 from unittest.mock import AsyncMock, MagicMock
 
+import httpx
 import pytest
 
 from app.domain.entities.spotify_connection import SpotifyConnection
+
+
+class TestSpotifyProfileVerification:
+    def test_current_user_maps_spotify_403_to_access_denied(self, monkeypatch) -> None:
+        from app.infrastructure.spotify.api_client import (
+            SpotifyApiClient,
+            SpotifyProfileAccessDeniedError,
+        )
+
+        response = httpx.Response(
+            status_code=403,
+            request=httpx.Request("GET", "https://api.spotify.com/v1/me"),
+        )
+        monkeypatch.setattr(httpx, "get", lambda *args, **kwargs: response)
+
+        with pytest.raises(SpotifyProfileAccessDeniedError):
+            SpotifyApiClient("access-token").get_current_user()
+
+    @pytest.mark.asyncio
+    async def test_complete_connection_returns_allowlist_guidance(self) -> None:
+        from app.application.use_cases.spotify.complete_connect import (
+            CompleteSpotifyConnectionUseCase,
+        )
+        from app.infrastructure.spotify.api_client import (
+            SpotifyProfileAccessDeniedError,
+        )
+
+        oauth = AsyncMock()
+        oauth.exchange_code.return_value = MagicMock(access_token="access-token")
+        state_service = MagicMock()
+        state_service.validate_and_consume_state.return_value = (
+            "user-1",
+            "/analyzer?source=spotify",
+        )
+        use_case = CompleteSpotifyConnectionUseCase(
+            oauth_client=oauth,
+            state_service=state_service,
+            repository=MagicMock(),
+        )
+
+        with pytest.MonkeyPatch.context() as monkeypatch:
+            monkeypatch.setattr(
+                "app.application.use_cases.spotify.complete_connect.SpotifyApiClient.get_current_user",
+                MagicMock(side_effect=SpotifyProfileAccessDeniedError()),
+            )
+            connection, message, return_to = await use_case.execute(
+                code="code",
+                state="state",
+            )
+
+        assert connection is None
+        assert message is not None
+        assert "Users and Access" in message
+        assert return_to == "/analyzer?source=spotify"
 
 
 class TestSpotifyConnectionExpiration:

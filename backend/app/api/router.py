@@ -10,6 +10,7 @@ from app.api.v1.endpoints.spotify import router as spotify_router
 from app.api.v1.endpoints.spotify_analysis import router as spotify_analysis_router
 from app.api.v1.endpoints.storage import router as storage_router
 from app.api.v1.endpoints.tracks import router as tracks_router
+from app.api.v1.endpoints.youtube import router as youtube_router
 from app.core.config import settings
 
 api_router = APIRouter()
@@ -43,3 +44,4 @@ api_router.include_router(
 )
 api_router.include_router(storage_router, prefix="/storage", tags=["Storage"])
 api_router.include_router(tracks_router, prefix="/tracks", tags=["Tracks"])
+api_router.include_router(youtube_router, prefix="/youtube", tags=["YouTube"])

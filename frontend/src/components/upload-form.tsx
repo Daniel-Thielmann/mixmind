@@ -2,20 +2,23 @@
 
 import { useCallback, useEffect, useState } from "react";
 import { motion, AnimatePresence } from "framer-motion";
-import { ArrowRight, FileAudio, Music, Upload } from "lucide-react";
+import { ArrowRight, CirclePlay as Youtube, FileAudio, Music, Upload } from "lucide-react";
 
 import { AuthDialog } from "@/components/auth/AuthDialog";
 import { Dashboard } from "@/components/home/dashboard";
 import { SpotifyAnalyzerSource } from "@/components/spotify/SpotifyAnalyzerSource";
+import { YouTubeAnalyzerSource } from "@/components/youtube/YouTubeAnalyzerSource";
 import { UploadCard } from "@/components/upload/upload-card";
 import { LoadingSpinner } from "@/components/ui/loading-spinner";
 import { SkeletonGrid } from "@/components/ui/Skeleton";
 import { loadSpotifyTracks, clearSpotifyTracks } from "@/lib/spotify-storage";
 import { apiService } from "@/services/api";
 import { analyzeSpotifyTracks } from "@/services/spotify-service";
+import { youtubeService } from "@/services/youtube-service";
 import { useAuth } from "@/hooks/useAuth";
 import type { UploadAnalysisResponse, UploadStatus } from "@/types";
 import type { SpotifySelectedTrack } from "@/types/spotify";
+import type { YouTubeTrack } from "@/types/youtube-track";
 
 const FRIENDLY_VALIDATION_MESSAGE =
   "Please select both tracks before analyzing.";
@@ -29,7 +32,7 @@ const STEPS = [
   { key: "done", label: "Complete" },
 ] as const;
 
-type InputMode = "manual" | "spotify";
+type InputMode = "manual" | "spotify" | "youtube";
 
 export function UploadForm() {
   const { isAuthenticated, loading: authLoading } = useAuth();
@@ -40,6 +43,8 @@ export function UploadForm() {
 
   const [spotifyTrackA, setSpotifyTrackA] = useState<SpotifySelectedTrack | null>(null);
   const [spotifyTrackB, setSpotifyTrackB] = useState<SpotifySelectedTrack | null>(null);
+  const [youtubeTrackA, setYoutubeTrackA] = useState<YouTubeTrack | null>(null);
+  const [youtubeTrackB, setYoutubeTrackB] = useState<YouTubeTrack | null>(null);
 
   const [status, setStatus] = useState<UploadStatus>("idle");
   const [error, setError] = useState<string | null>(null);
@@ -53,6 +58,7 @@ export function UploadForm() {
     const timer = window.setTimeout(() => {
       const params = new URLSearchParams(window.location.search);
       if (params.get("source") === "spotify") setMode("spotify");
+      if (params.get("source") === "youtube") setMode("youtube");
       if (params.get("spotify") !== "1") return;
       const stored = loadSpotifyTracks();
       if (!stored) return;
@@ -111,7 +117,7 @@ export function UploadForm() {
             : FRIENDLY_ERROR_MESSAGE,
         );
       }
-    } else {
+    } else if (mode === "spotify") {
       if (!spotifyTrackA || !spotifyTrackB) {
         setResult(null);
         setStatus("error");
@@ -144,8 +150,14 @@ export function UploadForm() {
             : FRIENDLY_ERROR_MESSAGE,
         );
       }
+    } else {
+      if (!youtubeTrackA || !youtubeTrackB) { setResult(null); setStatus("error"); setError(FRIENDLY_VALIDATION_MESSAGE); return; }
+      setStatus("uploading"); setError(null); setResult(null);
+      await new Promise<void>((resolve) => window.setTimeout(resolve, 0));
+      try { setStatus("processing"); setResult(await youtubeService.analyze(youtubeTrackA, youtubeTrackB)); setStatus("success"); }
+      catch (requestError) { setResult(null); setStatus("error"); setError(requestError instanceof Error ? requestError.message : FRIENDLY_ERROR_MESSAGE); }
     }
-  }, [isAuthenticated, mode, trackA, trackB, spotifyTrackA, spotifyTrackB]);
+  }, [isAuthenticated, mode, trackA, trackB, spotifyTrackA, spotifyTrackB, youtubeTrackA, youtubeTrackB]);
 
   function handleSelectSpotifyTrack(track: SpotifySelectedTrack) {
     if (track.position === "track_a") {
@@ -166,7 +178,7 @@ export function UploadForm() {
   const canAnalyze =
     mode === "manual"
       ? !!trackA && !!trackB
-      : !!spotifyTrackA && !!spotifyTrackB;
+      : mode === "spotify" ? !!spotifyTrackA && !!spotifyTrackB : !!youtubeTrackA && !!youtubeTrackB;
 
   const missingSelectionCopy = mode === "manual"
     ? !trackA && !trackB
@@ -174,11 +186,11 @@ export function UploadForm() {
       : !trackA
         ? "Add Track A to continue"
         : "Add Track B to continue"
-    : !spotifyTrackA && !spotifyTrackB
+    : mode === "spotify" && !spotifyTrackA && !spotifyTrackB
       ? "Select Track A and Track B"
-      : !spotifyTrackA
+      : mode === "spotify" && !spotifyTrackA
         ? "Select Track A to continue"
-        : "Select Track B to continue";
+        : mode === "spotify" ? "Select Track B to continue" : !youtubeTrackA && !youtubeTrackB ? "Select Track A and Track B" : !youtubeTrackA ? "Select Track A to continue" : "Select Track B to continue";
 
   return (
     <section className="mt-12 w-full">
@@ -205,7 +217,17 @@ export function UploadForm() {
               <p className="text-xs font-semibold uppercase tracking-[0.18em] text-text-secondary">
                 How do you want to add your tracks?
               </p>
-              <div className="mt-4 grid gap-3 sm:grid-cols-2" role="group" aria-label="Track source">
+              <div className="mt-4 grid gap-3 md:grid-cols-3" role="group" aria-label="Track source">
+              <button
+                type="button"
+                onClick={() => setMode("youtube")}
+                aria-pressed={mode === "youtube"}
+                className={`flex items-center gap-4 rounded-2xl border p-4 text-left transition-all ${mode === "youtube" ? "border-red-500/50 bg-red-500/10" : "border-zinc-800 bg-zinc-900/40 hover:border-zinc-700"}`}
+              >
+                <Youtube className={`h-6 w-6 ${mode === "youtube" ? "text-red-500" : "text-text-secondary"}`} />
+                <span className="flex-1"><span className="block text-sm font-semibold text-text">Choose from YouTube</span><span className="mt-1 block text-xs text-text-secondary">Search the music catalog</span></span>
+                <ArrowRight className="h-4 w-4 text-text-tertiary" />
+              </button>
               <button
                 type="button"
                 onClick={() => setMode("manual")}
@@ -259,12 +281,12 @@ export function UploadForm() {
             ) : !isAuthenticated ? (
               <div className="rounded-2xl border border-[#1DB954]/20 bg-[#1DB954]/5 p-6 text-center">
                 <Music className="mx-auto h-8 w-8 text-[#1DB954]" />
-                <h2 className="mt-4 text-lg font-semibold text-text">Sign in to use Spotify</h2>
+                <h2 className="mt-4 text-lg font-semibold text-text">Sign in to use {mode === "spotify" ? "Spotify" : "YouTube"}</h2>
                 <p className="mx-auto mt-2 max-w-xl text-sm leading-6 text-text-secondary">
                   Sign in, connect your Spotify account and choose two tracks directly from your library. Your destination will be preserved.
                 </p>
               </div>
-            ) : (
+            ) : mode === "spotify" ? (
               <SpotifyAnalyzerSource
                 selectedTrackA={spotifyTrackA}
                 selectedTrackB={spotifyTrackB}
@@ -272,6 +294,8 @@ export function UploadForm() {
                 onDeselectTrack={handleDeselectSpotifyTrack}
                 onBack={() => setMode("manual")}
               />
+            ) : (
+              <YouTubeAnalyzerSource selectedTrackA={youtubeTrackA} selectedTrackB={youtubeTrackB} onSelect={(track, position) => position === "track_a" ? setYoutubeTrackA(track) : setYoutubeTrackB(track)} onDeselect={(position) => position === "track_a" ? setYoutubeTrackA(null) : setYoutubeTrackB(null)} />
             )}
 
             {isAuthenticated && !canAnalyze && !isBusy ? (
@@ -300,7 +324,7 @@ export function UploadForm() {
                 ) : (
                   <>
                     <Upload className="h-5 w-5" />
-                    {mode === "spotify" ? "Analyze selected tracks" : "Analyze uploaded tracks"}
+                    {mode === "manual" ? "Analyze uploaded tracks" : "Analyze selected tracks"}
                   </>
                 )}
               </button>

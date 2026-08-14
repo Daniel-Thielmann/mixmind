@@ -9,7 +9,10 @@ from app.domain.entities.spotify_connection import SpotifyConnection
 from app.domain.repositories.spotify_connection_repository import (
     SpotifyConnectionRepository,
 )
-from app.infrastructure.spotify.api_client import SpotifyApiClient
+from app.infrastructure.spotify.api_client import (
+    SpotifyApiClient,
+    SpotifyProfileAccessDeniedError,
+)
 from app.infrastructure.spotify.oauth_client import SpotifyOAuthClient
 
 logger = logging.getLogger(__name__)
@@ -64,8 +67,18 @@ class CompleteSpotifyConnectionUseCase:
         try:
             api_client = SpotifyApiClient(token_response.access_token)
             profile = api_client.get_current_user()
+        except SpotifyProfileAccessDeniedError:
+            logger.warning(
+                "Spotify profile access denied; account may not be in the Development Mode allowlist"
+            )
+            return (
+                None,
+                "This Spotify account is not authorized for this app yet. "
+                "Ask the app owner to add it under Spotify Developer Dashboard — Users and Access.",
+                return_to,
+            )
         except Exception:
-            logger.error("Failed to fetch Spotify user profile")
+            logger.exception("Failed to fetch Spotify user profile")
             return None, "Failed to verify Spotify account.", return_to
 
         expires_at = int(time.time()) + token_response.expires_in

@@ -6,6 +6,10 @@ from typing import Any
 import httpx
 
 
+class SpotifyProfileAccessDeniedError(Exception):
+    """Spotify denied Web API access for the authorized account."""
+
+
 @dataclass
 class SpotifyUserProfile:
     id: str
@@ -29,6 +33,8 @@ class SpotifyApiClient:
             headers=self._headers(),
             timeout=30,
         )
+        if response.status_code == 403:
+            raise SpotifyProfileAccessDeniedError
         response.raise_for_status()
         data: dict[str, Any] = response.json()
         return SpotifyUserProfile(
