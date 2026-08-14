@@ -1,4 +1,5 @@
 import asyncio
+import json
 from io import BytesIO
 
 from fastapi import UploadFile
@@ -6,6 +7,11 @@ from fastapi.testclient import TestClient
 
 from app.api.v1.endpoints import analysis as analysis_module
 from app.application.dto.api import UploadAnalysisResponse
+from app.application.use_cases.analysis.progress import (
+    AnalysisProgressCallback,
+    AnalysisProgressEvent,
+    AnalysisStage,
+)
 from app.domain.entities.track import AudioAnalysis
 from app.domain.value_objects.compatibility import CompatibilityResult
 from app.domain.value_objects.visualization import (
@@ -141,6 +147,40 @@ def test_analyze_tracks_returns_analysis_response(monkeypatch) -> None:
     result = asyncio.run(analysis_module.analyze_tracks(track_a, track_b))
 
     assert result == expected
+
+
+def test_stream_endpoint_reports_progress_and_failure(monkeypatch) -> None:
+    track_a = UploadFile(filename="Animals.mp3", file=BytesIO(b"a"))
+    track_b = UploadFile(filename="Spaceman.mp3", file=BytesIO(b"b"))
+
+    def fail_analysis(
+        _track_a: UploadFile,
+        _track_b: UploadFile,
+        on_progress: AnalysisProgressCallback | None = None,
+    ) -> UploadAnalysisResponse:
+        if on_progress is not None:
+            on_progress(
+                AnalysisProgressEvent(
+                    stage=AnalysisStage.STARTED,
+                    progress=5,
+                    message="Analysis started",
+                    analysis_id="stream-test",
+                )
+            )
+        raise RuntimeError("provider details must not leak")
+
+    monkeypatch.setattr(analysis_module.analysis_service, "analyze", fail_analysis)
+
+    async def consume_stream() -> list[dict[str, object]]:
+        response = await analysis_module.analyze_tracks_stream(track_a, track_b)
+        chunks = [chunk async for chunk in response.body_iterator]
+        return [json.loads(chunk) for chunk in chunks]
+
+    events = asyncio.run(consume_stream())
+
+    assert [event["stage"] for event in events] == ["started", "failed"]
+    assert events[-1]["message"] == "Analysis failed. Please try again."
+    assert "provider details" not in json.dumps(events)
 
 
 def test_analyze_tracks_http_response_includes_spectrograms(monkeypatch) -> None:

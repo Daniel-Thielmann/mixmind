@@ -5,6 +5,10 @@ from pathlib import Path
 from fastapi import UploadFile
 
 from app.application.use_cases.analysis.analyze_track import AnalysisService
+from app.application.use_cases.analysis.progress import (
+    AnalysisProgressEvent,
+    AnalysisStage,
+)
 from app.domain.entities.track import AudioAnalysis
 from app.domain.value_objects.compatibility import CompatibilityResult
 from app.domain.value_objects.visualization import SpectrogramResult, WaveformResult
@@ -169,7 +173,8 @@ def test_analysis_service_analyze_builds_complete_response(tmp_path) -> None:
     track_a = UploadFile(filename="Animals.mp3", file=BytesIO(b"a"))
     track_b = UploadFile(filename="Spaceman.mp3", file=BytesIO(b"b"))
 
-    response = service.analyze(track_a, track_b)
+    progress_events: list[AnalysisProgressEvent] = []
+    response = service.analyze(track_a, track_b, on_progress=progress_events.append)
 
     assert response.status == "success"
     assert response.track_a.filename == "Animals.mp3"
@@ -185,3 +190,16 @@ def test_analysis_service_analyze_builds_complete_response(tmp_path) -> None:
     assert response.waveforms.track_b.height == 300
     assert response.spectrograms.track_a.width == 1200
     assert response.spectrograms.track_b.height == 500
+    assert [event.stage for event in progress_events] == [
+        AnalysisStage.STARTED,
+        AnalysisStage.FILES_SAVED,
+        AnalysisStage.TRACK_A_ANALYZED,
+        AnalysisStage.TRACK_B_ANALYZED,
+        AnalysisStage.COMPATIBILITY_COMPUTED,
+        AnalysisStage.AI_RECOMMENDATION_STARTED,
+        AnalysisStage.COMPLETED,
+    ]
+    assert [event.progress for event in progress_events] == sorted(
+        event.progress for event in progress_events
+    )
+    assert progress_events[-1].data == response.model_dump(mode="json")

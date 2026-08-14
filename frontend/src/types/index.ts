@@ -101,6 +101,26 @@ export interface UploadAnalysisResponse {
   spectrograms: TrackMediaAssets;
 }
 
+export type AnalysisProgressStage =
+  | "acquiring_tracks"
+  | "tracks_acquired"
+  | "started"
+  | "files_saved"
+  | "track_a_analyzed"
+  | "track_b_analyzed"
+  | "compatibility_computed"
+  | "ai_recommendation_started"
+  | "completed"
+  | "failed";
+
+export interface AnalysisProgressEvent {
+  stage: AnalysisProgressStage;
+  progress: number;
+  message: string;
+  analysis_id?: string | null;
+  data?: unknown;
+}
+
 export type UploadStatus =
   | "idle"
   | "uploading"

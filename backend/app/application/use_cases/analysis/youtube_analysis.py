@@ -4,12 +4,14 @@ import asyncio
 
 from app.application.dto.api import UploadAnalysisResponse
 from app.application.dto.youtube import YouTubeAnalysisRequest
+from app.application.use_cases.analysis.progress import AnalysisProgressCallback
 from app.application.use_cases.analysis.spotify_analysis.dto import (
     SpotifyAnalysisRequest,
 )
 from app.application.use_cases.analysis.spotify_analysis.service import (
     RemoteTrackAnalysisService,
 )
+from app.domain.value_objects.spotify_track import SpotifyTrackMetadata
 from app.infrastructure.youtube.api_client import YouTubeApiClient
 from app.infrastructure.youtube.rapidapi_downloader import RapidApiYouTubeDownloader
 
@@ -22,7 +24,10 @@ class YouTubeAnalysisService:
         )
 
     async def analyze(
-        self, request: YouTubeAnalysisRequest, client: YouTubeApiClient
+        self,
+        request: YouTubeAnalysisRequest,
+        client: YouTubeApiClient,
+        on_progress: AnalysisProgressCallback | None = None,
     ) -> UploadAnalysisResponse:
         video_a = request.video_id("track_a")
         video_b = request.video_id("track_b")
@@ -31,7 +36,7 @@ class YouTubeAnalysisService:
         )
 
         class MetadataClient:
-            async def get_track_metadata(self, track_id: str):
+            async def get_track_metadata(self, track_id: str) -> SpotifyTrackMetadata:
                 return metadata_a if track_id == video_a else metadata_b
 
         adapted = SpotifyAnalysisRequest.model_validate(
@@ -42,7 +47,11 @@ class YouTubeAnalysisService:
                 ]
             }
         )
-        return await self._analysis.analyze(adapted, MetadataClient())  # type: ignore[arg-type]
+        return await self._analysis.analyze(
+            adapted,
+            MetadataClient(),
+            on_progress,
+        )
 
 
 youtube_analysis_service = YouTubeAnalysisService()

@@ -34,6 +34,7 @@ export async function POST() {
   return NextResponse.json(
     {
       uploadUrl: `${apiUrl}/api/v1/analysis/analyze`,
+      streamUrl: `${apiUrl}/api/v1/analysis/analyze/stream`,
       headers: {
         "X-MixMind-User": session.user.id,
         "X-MixMind-Timestamp": timestamp,

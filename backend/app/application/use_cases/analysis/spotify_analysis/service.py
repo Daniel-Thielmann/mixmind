@@ -11,6 +11,11 @@ from app.application.dto.api import UploadAnalysisResponse
 from app.application.use_cases.analysis.analyze_track.service import (
     AnalysisService,
 )
+from app.application.use_cases.analysis.progress import (
+    AnalysisProgressCallback,
+    AnalysisProgressEvent,
+    AnalysisStage,
+)
 from app.application.use_cases.analysis.spotify_analysis.dto import (
     SpotifyAnalysisRequest,
     TrackPosition,
@@ -21,7 +26,6 @@ from app.core.exceptions import (
 )
 from app.domain.value_objects.acquired_audio import AcquiredAudio
 from app.domain.value_objects.spotify_track import SpotifyTrackMetadata
-from app.infrastructure.spotify.extended_api_client import ExtendedSpotifyApiClient
 from app.infrastructure.spotify.rapidapi_downloader import (
     RapidApiSpotifyDownloaderProvider,
 )
@@ -36,6 +40,14 @@ class UploadSource(Protocol):
     filename: str | None
     content_type: str | None
     file: BinaryIO
+
+
+class TrackMetadataClient(Protocol):
+    async def get_track_metadata(self, track_id: str) -> SpotifyTrackMetadata: ...
+
+
+class RemoteAudioDownloader(Protocol):
+    def acquire(self, metadata: SpotifyTrackMetadata) -> AcquiredAudio: ...
 
 
 class _DownloadedAudioSource:
@@ -54,7 +66,7 @@ class RemoteTrackAnalysisService:
     def __init__(
         self,
         analysis_service: AnalysisService | None = None,
-        downloader: RapidApiSpotifyDownloaderProvider | None = None,
+        downloader: RemoteAudioDownloader | None = None,
         provider_name: str = "Spotify",
     ) -> None:
         self._analysis_service = analysis_service or AnalysisService()
@@ -64,18 +76,25 @@ class RemoteTrackAnalysisService:
     async def analyze(
         self,
         request: SpotifyAnalysisRequest,
-        spotify_api_client: ExtendedSpotifyApiClient,
+        spotify_api_client: TrackMetadataClient,
+        on_progress: AnalysisProgressCallback | None = None,
     ) -> UploadAnalysisResponse:
         import asyncio
 
         started_at = time.monotonic()
-        track_a_meta, track_b_meta = await asyncio.gather(
-            spotify_api_client.get_track_metadata(
-                request.get_track_a().spotify_track_id
-            ),
-            spotify_api_client.get_track_metadata(
-                request.get_track_b().spotify_track_id
-            ),
+        if on_progress is not None:
+            on_progress(
+                AnalysisProgressEvent(
+                    stage=AnalysisStage.ACQUIRING_TRACKS,
+                    progress=5,
+                    message=f"Fetching tracks from {self._provider_name}",
+                )
+            )
+        track_a_meta = await spotify_api_client.get_track_metadata(
+            request.get_track_a().spotify_track_id
+        )
+        track_b_meta = await spotify_api_client.get_track_metadata(
+            request.get_track_b().spotify_track_id
         )
         logger.info(
             "remote_analysis_stage | provider=%s | stage=metadata | elapsed_ms=%.0f",
@@ -93,22 +112,29 @@ class RemoteTrackAnalysisService:
         )
 
         download_started_at = time.monotonic()
-        download_results = await asyncio.gather(
-            asyncio.to_thread(self._download_and_validate, track_a_meta, "track_a"),
-            asyncio.to_thread(self._download_and_validate, track_b_meta, "track_b"),
-            return_exceptions=True,
+        acquired_a = await asyncio.to_thread(
+            self._download_and_validate,
+            track_a_meta,
+            "track_a",
         )
-        failures = [
-            result for result in download_results if isinstance(result, BaseException)
-        ]
-        if failures:
-            for result in download_results:
-                if isinstance(result, AcquiredAudio):
-                    self._cleanup(result)
-            raise failures[0]
-        acquired_a, acquired_b = download_results
-        assert isinstance(acquired_a, AcquiredAudio)
-        assert isinstance(acquired_b, AcquiredAudio)
+        try:
+            acquired_b = await asyncio.to_thread(
+                self._download_and_validate,
+                track_b_meta,
+                "track_b",
+            )
+        except Exception:
+            self._cleanup(acquired_a)
+            raise
+
+        if on_progress is not None:
+            on_progress(
+                AnalysisProgressEvent(
+                    stage=AnalysisStage.TRACKS_ACQUIRED,
+                    progress=20,
+                    message="Tracks acquired and validated",
+                )
+            )
 
         logger.info(
             "remote_analysis_stage | provider=%s | stage=downloads | elapsed_ms=%.0f",
@@ -132,8 +158,21 @@ class RemoteTrackAnalysisService:
                 content_type=acquired_b.mime_type,
             )
             analysis_started_at = time.monotonic()
+
+            def report_analysis(event: AnalysisProgressEvent) -> None:
+                if on_progress is None:
+                    return
+                on_progress(
+                    event.model_copy(
+                        update={"progress": 20 + round(event.progress * 0.8)}
+                    )
+                )
+
             response = await asyncio.to_thread(
-                self._analysis_service.analyze, source_a, source_b
+                self._analysis_service.analyze,
+                source_a,
+                source_b,
+                report_analysis,
             )
             logger.info(
                 "remote_analysis_stage | provider=%s | stage=dsp | elapsed_ms=%.0f | total_ms=%.0f",

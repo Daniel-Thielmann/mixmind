@@ -9,9 +9,15 @@ from uuid import uuid4
 import numpy as np
 import soundfile as sf
 import soxr
+from pydantic import JsonValue
 
 from app.application.dto.api import AnalysisMetadata, UploadAnalysisResponse
 from app.application.ports.storage import AnalysisArtifactStorage, UploadSource
+from app.application.use_cases.analysis.progress import (
+    AnalysisProgressCallback,
+    AnalysisProgressEvent,
+    AnalysisStage,
+)
 from app.application.use_cases.compatibility.compare_tracks.service import (
     CompatibilityService,
     compatibility_service,
@@ -192,6 +198,7 @@ class AnalysisService:
         self,
         track_a: UploadSource,
         track_b: UploadSource,
+        on_progress: AnalysisProgressCallback | None = None,
     ) -> UploadAnalysisResponse:
         """Store both uploads, analyze them, and return the API response."""
 
@@ -202,6 +209,26 @@ class AnalysisService:
         pipeline_start = time.monotonic()
 
         analysis_id = uuid4().hex
+
+        def emit(
+            stage: AnalysisStage,
+            progress: int,
+            message: str,
+            data: JsonValue | None = None,
+        ) -> None:
+            if on_progress is None:
+                return
+            on_progress(
+                AnalysisProgressEvent(
+                    stage=stage,
+                    progress=progress,
+                    message=message,
+                    analysis_id=analysis_id,
+                    data=data,
+                )
+            )
+
+        emit(AnalysisStage.STARTED, 5, "Analysis started")
 
         # ---- Step 1 - Saving uploaded files ----
         step_start = time.monotonic()
@@ -216,6 +243,7 @@ class AnalysisService:
                 path_a.name,
                 path_b.name,
             )
+            emit(AnalysisStage.FILES_SAVED, 15, "Audio files validated and saved")
         except Exception:
             logger.exception("Step 1 - Saving uploaded files FAILED")
             raise
@@ -232,6 +260,12 @@ class AnalysisService:
             logger.info(
                 "Step 2 - Audio analysis Track A completed in %.2f s",
                 time.monotonic() - step_start,
+            )
+            emit(
+                AnalysisStage.TRACK_A_ANALYZED,
+                35,
+                "Track A musical features are ready",
+                analysis_a.model_dump(mode="json"),
             )
         except Exception:
             logger.exception("Step 2 - Audio analysis Track A FAILED")
@@ -286,6 +320,12 @@ class AnalysisService:
                 "Step 5 - Audio analysis Track B completed in %.2f s",
                 time.monotonic() - step_start,
             )
+            emit(
+                AnalysisStage.TRACK_B_ANALYZED,
+                60,
+                "Track B musical features are ready",
+                analysis_b.model_dump(mode="json"),
+            )
         except Exception:
             logger.exception("Step 5 - Audio analysis Track B FAILED")
             raise
@@ -336,6 +376,12 @@ class AnalysisService:
             logger.info(
                 "Step 8 - Compatibility Engine completed in %.4f s",
                 time.monotonic() - step_start,
+            )
+            emit(
+                AnalysisStage.COMPATIBILITY_COMPUTED,
+                78,
+                "Track compatibility is ready",
+                compatibility.model_dump(mode="json"),
             )
         except Exception:
             logger.exception("Step 8 - Compatibility Engine FAILED")
@@ -451,6 +497,11 @@ class AnalysisService:
         # ---- Step 10 - AI Recommendation ----
         step_start = time.monotonic()
         try:
+            emit(
+                AnalysisStage.AI_RECOMMENDATION_STARTED,
+                85,
+                "Preparing DJ guidance",
+            )
             log_memory("Before AI")
             ai_recommendation = self._ai_agent.recommend(response)
             response = response.model_copy(
@@ -489,6 +540,12 @@ class AnalysisService:
         if isinstance(self._storage, AnalysisArtifactStorage):
             self._storage.cleanup_local(path_a, path_b)
 
+        emit(
+            AnalysisStage.COMPLETED,
+            100,
+            "Analysis completed",
+            response.model_dump(mode="json"),
+        )
         return response
 
     def _write_analysis_metadata(

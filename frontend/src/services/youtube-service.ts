@@ -1,4 +1,5 @@
-import type { UploadAnalysisResponse } from "@/types";
+import { readAnalysisStream } from "@/services/api";
+import type { AnalysisProgressEvent, UploadAnalysisResponse } from "@/types";
 import type { YouTubeTrack } from "@/types/youtube-track";
 
 async function json<T>(response: Response): Promise<T> {
@@ -9,5 +10,13 @@ async function json<T>(response: Response): Promise<T> {
 
 export const youtubeService = {
   search: (query: string) => fetch(`/api/youtube?action=search&q=${encodeURIComponent(query)}`, { cache: "no-store" }).then(json<{ items: YouTubeTrack[] }>),
-  analyze: (trackA: YouTubeTrack, trackB: YouTubeTrack) => fetch("/api/analyze/youtube", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ tracks: [{ position: "track_a", youtube_video_id: trackA.id }, { position: "track_b", youtube_video_id: trackB.id }] }) }).then(json<UploadAnalysisResponse>),
+  analyze: async (
+    trackA: YouTubeTrack,
+    trackB: YouTubeTrack,
+    onProgress?: (event: AnalysisProgressEvent) => void,
+  ) => {
+    const response = await fetch("/api/analyze/youtube", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ tracks: [{ position: "track_a", youtube_video_id: trackA.id }, { position: "track_b", youtube_video_id: trackB.id }] }) });
+    if (!response.ok) return json<UploadAnalysisResponse>(response);
+    return readAnalysisStream(response, onProgress);
+  },
 };

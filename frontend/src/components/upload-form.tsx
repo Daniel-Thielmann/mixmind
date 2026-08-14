@@ -16,7 +16,13 @@ import { apiService } from "@/services/api";
 import { analyzeSpotifyTracks } from "@/services/spotify-service";
 import { youtubeService } from "@/services/youtube-service";
 import { useAuth } from "@/hooks/useAuth";
-import type { UploadAnalysisResponse, UploadStatus } from "@/types";
+import type {
+  AudioAnalysis,
+  AnalysisProgressEvent,
+  CompatibilityResult,
+  UploadAnalysisResponse,
+  UploadStatus,
+} from "@/types";
 import type { SpotifySelectedTrack } from "@/types/spotify";
 import type { YouTubeTrack } from "@/types/youtube-track";
 
@@ -50,9 +56,36 @@ export function UploadForm() {
   const [error, setError] = useState<string | null>(null);
   const [result, setResult] = useState<UploadAnalysisResponse | null>(null);
   const [showAiPhase, setShowAiPhase] = useState(false);
+  const [progressEvent, setProgressEvent] =
+    useState<AnalysisProgressEvent | null>(null);
+  const [partialResult, setPartialResult] = useState<{
+    trackA?: AudioAnalysis;
+    trackB?: AudioAnalysis;
+    compatibility?: CompatibilityResult;
+  }>({});
   const [authOpen, setAuthOpen] = useState(false);
 
   const isBusy = status === "uploading" || status === "processing";
+
+  const handleProgress = useCallback((event: AnalysisProgressEvent) => {
+    setProgressEvent(event);
+    if (event.stage === "track_a_analyzed") {
+      setPartialResult((current) => ({
+        ...current,
+        trackA: event.data as AudioAnalysis,
+      }));
+    } else if (event.stage === "track_b_analyzed") {
+      setPartialResult((current) => ({
+        ...current,
+        trackB: event.data as AudioAnalysis,
+      }));
+    } else if (event.stage === "compatibility_computed") {
+      setPartialResult((current) => ({
+        ...current,
+        compatibility: event.data as CompatibilityResult,
+      }));
+    }
+  }, []);
 
   useEffect(() => {
     const timer = window.setTimeout(() => {
@@ -78,7 +111,15 @@ export function UploadForm() {
 
   let phase = 0;
   if (status === "uploading") phase = 1;
-  else if (status === "processing") phase = showAiPhase ? 3 : 2;
+  else if (status === "processing") {
+    if (progressEvent) {
+      if (progressEvent.stage === "acquiring_tracks") phase = 1;
+      else if (progressEvent.stage === "ai_recommendation_started") phase = 3;
+      else phase = 2;
+    } else {
+      phase = showAiPhase ? 3 : 2;
+    }
+  }
   else if (status === "success") phase = 4;
 
   const handleAnalyze = useCallback(async () => {
@@ -100,12 +141,18 @@ export function UploadForm() {
       setStatus("uploading");
       setError(null);
       setResult(null);
+      setProgressEvent(null);
+      setPartialResult({});
       await new Promise<void>((resolve) => {
         window.setTimeout(resolve, 0);
       });
       try {
         setStatus("processing");
-        const response = await apiService.analyzeTracks(trackA, trackB);
+        const response = await apiService.analyzeTracks(
+          trackA,
+          trackB,
+          handleProgress,
+        );
         setResult(response);
         setStatus("success");
       } catch (requestError) {
@@ -154,10 +201,10 @@ export function UploadForm() {
       if (!youtubeTrackA || !youtubeTrackB) { setResult(null); setStatus("error"); setError(FRIENDLY_VALIDATION_MESSAGE); return; }
       setStatus("uploading"); setError(null); setResult(null);
       await new Promise<void>((resolve) => window.setTimeout(resolve, 0));
-      try { setStatus("processing"); setResult(await youtubeService.analyze(youtubeTrackA, youtubeTrackB)); setStatus("success"); }
+      try { setStatus("processing"); setProgressEvent(null); setPartialResult({}); setResult(await youtubeService.analyze(youtubeTrackA, youtubeTrackB, handleProgress)); setStatus("success"); }
       catch (requestError) { setResult(null); setStatus("error"); setError(requestError instanceof Error ? requestError.message : FRIENDLY_ERROR_MESSAGE); }
     }
-  }, [isAuthenticated, mode, trackA, trackB, spotifyTrackA, spotifyTrackB, youtubeTrackA, youtubeTrackB]);
+  }, [isAuthenticated, mode, trackA, trackB, spotifyTrackA, spotifyTrackB, youtubeTrackA, youtubeTrackB, handleProgress]);
 
   function handleSelectSpotifyTrack(track: SpotifySelectedTrack) {
     if (track.position === "track_a") {
@@ -317,7 +364,7 @@ export function UploadForm() {
                 ) : isBusy ? (
                   <>
                     <LoadingSpinner />
-                    {STEPS[phase - 1]?.label ?? "Working..."}
+                    {progressEvent?.message ?? STEPS[phase - 1]?.label ?? "Working..."}
                   </>
                 ) : (
                   <>
@@ -329,7 +376,14 @@ export function UploadForm() {
             )}
 
             {isBusy && (
-              <div className="mt-5 flex items-center justify-center gap-2">
+              <div className="mt-5">
+                {progressEvent ? (
+                  <div className="mb-3 flex items-center justify-between text-xs text-text-secondary">
+                    <span>{progressEvent.message}</span>
+                    <span>{progressEvent.progress}%</span>
+                  </div>
+                ) : null}
+                <div className="flex items-center justify-center gap-2">
                 {STEPS.map((step, i) => {
                   const stepNum = i + 1;
                   const isActive = phase >= stepNum;
@@ -366,6 +420,29 @@ export function UploadForm() {
                     </div>
                   );
                 })}
+                </div>
+                {partialResult.trackA || partialResult.trackB ? (
+                  <div className="mt-4 grid gap-3 md:grid-cols-2">
+                    {[
+                      ["Track A", partialResult.trackA],
+                      ["Track B", partialResult.trackB],
+                    ].map(([label, track]) =>
+                      track && typeof track !== "string" ? (
+                        <div key={label as string} className="rounded-xl border border-zinc-800 bg-zinc-950/40 p-3 text-sm">
+                          <p className="font-semibold text-text">{label as string}</p>
+                          <p className="mt-1 text-text-secondary">
+                            {track.bpm.toFixed(1)} BPM · {track.camelot ?? track.key ?? "Unknown"} · energy {track.energy.toFixed(3)}
+                          </p>
+                        </div>
+                      ) : null,
+                    )}
+                  </div>
+                ) : null}
+                {partialResult.compatibility ? (
+                  <div className="mt-3 rounded-xl border border-success/20 bg-success/5 p-3 text-sm text-text-secondary">
+                    Compatibility ready: <span className="font-semibold text-success">{partialResult.compatibility.compatibility_score.toFixed(0)}/100</span>
+                  </div>
+                ) : null}
               </div>
             )}
 
