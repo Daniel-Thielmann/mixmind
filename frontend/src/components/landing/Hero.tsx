@@ -23,22 +23,22 @@ export function Hero() {
   const { isAuthenticated } = useAuth();
   const [authOpen, setAuthOpen] = useState(false);
 
-  function startWithSpotify() {
-    if (isAuthenticated) router.push("/analyzer?source=spotify");
+  function startWithYouTube() {
+    if (isAuthenticated) router.push("/analyzer?source=youtube");
     else setAuthOpen(true);
   }
 
   return (
     <>
       <ScrollScene className="flex min-h-screen items-center justify-center overflow-hidden px-6 pb-20 pt-24">
-        {({ smoothProgress, reducedMotion }) => <HeroScene smoothProgress={smoothProgress} reducedMotion={reducedMotion} startWithSpotify={startWithSpotify} />}
+        {({ smoothProgress, reducedMotion }) => <HeroScene smoothProgress={smoothProgress} reducedMotion={reducedMotion} startWithYouTube={startWithYouTube} />}
       </ScrollScene>
-      <AuthDialog open={authOpen} onOpenChange={setAuthOpen} returnTo="/analyzer?source=spotify" />
+      <AuthDialog open={authOpen} onOpenChange={setAuthOpen} returnTo="/analyzer?source=youtube" />
     </>
   );
 }
 
-function HeroScene({ smoothProgress, reducedMotion, startWithSpotify }: { smoothProgress: import("framer-motion").MotionValue<number>; reducedMotion: boolean; startWithSpotify: () => void }) {
+function HeroScene({ smoothProgress, reducedMotion, startWithYouTube }: { smoothProgress: import("framer-motion").MotionValue<number>; reducedMotion: boolean; startWithYouTube: () => void }) {
   const textY = useTransform(smoothProgress, [0.35, 0.85], [0, reducedMotion ? 0 : -36]);
   const textScale = useTransform(smoothProgress, [0.35, 0.85], [1, reducedMotion ? 1 : 0.97]);
   const panelY = useTransform(smoothProgress, [0.15, 0.7], [reducedMotion ? 0 : 50, 0]);
@@ -58,7 +58,7 @@ function HeroScene({ smoothProgress, reducedMotion, startWithSpotify }: { smooth
             className="mb-6 inline-flex items-center gap-2 rounded-full border border-primary/20 bg-primary/5 px-4 py-1.5 text-xs font-medium text-primary"
           >
             <span className="flex h-2 w-2 rounded-full bg-primary animate-pulse-slow" />
-            New — Spotify integration
+            New — YouTube search
           </motion.div>
 
           <motion.h1
@@ -82,7 +82,7 @@ function HeroScene({ smoothProgress, reducedMotion, startWithSpotify }: { smooth
             animate="visible"
             className="mx-auto mt-6 max-w-lg text-base leading-relaxed text-text-secondary md:text-lg lg:mx-0"
           >
-            Upload two audio files or choose tracks directly from Spotify. MixMind analyzes BPM, energy, harmonic keys and compatibility without requiring a manual MP3 upload in Spotify mode.
+            Search and select two tracks from YouTube or upload your own audio. MixMind analyzes BPM, energy, harmonic keys and transition compatibility.
           </motion.p>
 
           <motion.div
@@ -94,10 +94,10 @@ function HeroScene({ smoothProgress, reducedMotion, startWithSpotify }: { smooth
           >
             <Button
               type="button"
-              onClick={startWithSpotify}
+              onClick={startWithYouTube}
               size="lg"
             >
-              Try with Spotify
+              Try with YouTube
             </Button>
             <Button asChild variant="outline" size="lg"><a href="/analyzer?source=manual">
               <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">

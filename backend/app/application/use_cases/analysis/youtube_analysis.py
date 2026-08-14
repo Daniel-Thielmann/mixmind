@@ -8,7 +8,7 @@ from app.application.use_cases.analysis.spotify_analysis.dto import (
     SpotifyAnalysisRequest,
 )
 from app.application.use_cases.analysis.spotify_analysis.service import (
-    SpotifyAnalysisService,
+    RemoteTrackAnalysisService,
 )
 from app.infrastructure.youtube.api_client import YouTubeApiClient
 from app.infrastructure.youtube.rapidapi_downloader import RapidApiYouTubeDownloader
@@ -16,7 +16,10 @@ from app.infrastructure.youtube.rapidapi_downloader import RapidApiYouTubeDownlo
 
 class YouTubeAnalysisService:
     def __init__(self) -> None:
-        self._analysis = SpotifyAnalysisService(downloader=RapidApiYouTubeDownloader())
+        self._analysis = RemoteTrackAnalysisService(
+            downloader=RapidApiYouTubeDownloader(),
+            provider_name="YouTube",
+        )
 
     async def analyze(
         self, request: YouTubeAnalysisRequest, client: YouTubeApiClient

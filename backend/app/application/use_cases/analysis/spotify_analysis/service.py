@@ -50,14 +50,16 @@ class _DownloadedAudioSource:
         self.file.close()
 
 
-class SpotifyAnalysisService:
+class RemoteTrackAnalysisService:
     def __init__(
         self,
         analysis_service: AnalysisService | None = None,
         downloader: RapidApiSpotifyDownloaderProvider | None = None,
+        provider_name: str = "Spotify",
     ) -> None:
         self._analysis_service = analysis_service or AnalysisService()
         self._downloader = downloader or RapidApiSpotifyDownloaderProvider()
+        self._provider_name = provider_name
 
     async def analyze(
         self,
@@ -76,12 +78,14 @@ class SpotifyAnalysisService:
             ),
         )
         logger.info(
-            "spotify_analysis_stage | stage=metadata | elapsed_ms=%.0f",
+            "remote_analysis_stage | provider=%s | stage=metadata | elapsed_ms=%.0f",
+            self._provider_name.lower(),
             (time.monotonic() - started_at) * 1000,
         )
 
         logger.info(
-            "Acquired Spotify metadata: A='%s' (%s), B='%s' (%s)",
+            "Acquired %s metadata: A='%s' (%s), B='%s' (%s)",
+            self._provider_name,
             track_a_meta.title,
             track_a_meta.spotify_id,
             track_b_meta.title,
@@ -89,19 +93,26 @@ class SpotifyAnalysisService:
         )
 
         download_started_at = time.monotonic()
-        acquired_a = await asyncio.to_thread(
-            self._download_and_validate, track_a_meta, "track_a"
+        download_results = await asyncio.gather(
+            asyncio.to_thread(self._download_and_validate, track_a_meta, "track_a"),
+            asyncio.to_thread(self._download_and_validate, track_b_meta, "track_b"),
+            return_exceptions=True,
         )
-        try:
-            acquired_b = await asyncio.to_thread(
-                self._download_and_validate, track_b_meta, "track_b"
-            )
-        except Exception:
-            self._cleanup(acquired_a)
-            raise
+        failures = [
+            result for result in download_results if isinstance(result, BaseException)
+        ]
+        if failures:
+            for result in download_results:
+                if isinstance(result, AcquiredAudio):
+                    self._cleanup(result)
+            raise failures[0]
+        acquired_a, acquired_b = download_results
+        assert isinstance(acquired_a, AcquiredAudio)
+        assert isinstance(acquired_b, AcquiredAudio)
 
         logger.info(
-            "spotify_analysis_stage | stage=downloads | elapsed_ms=%.0f",
+            "remote_analysis_stage | provider=%s | stage=downloads | elapsed_ms=%.0f",
+            self._provider_name.lower(),
             (time.monotonic() - download_started_at) * 1000,
         )
 
@@ -125,7 +136,8 @@ class SpotifyAnalysisService:
                 self._analysis_service.analyze, source_a, source_b
             )
             logger.info(
-                "spotify_analysis_stage | stage=dsp | elapsed_ms=%.0f | total_ms=%.0f",
+                "remote_analysis_stage | provider=%s | stage=dsp | elapsed_ms=%.0f | total_ms=%.0f",
+                self._provider_name.lower(),
                 (time.monotonic() - analysis_started_at) * 1000,
                 (time.monotonic() - started_at) * 1000,
             )
@@ -229,23 +241,24 @@ class SpotifyAnalysisService:
         try:
             info = sf.info(str(acquired.local_path))
             file_duration = info.duration
-            spotify_duration = metadata.duration_seconds
-            diff = abs(file_duration - spotify_duration)
+            expected_duration = metadata.duration_seconds
+            diff = abs(file_duration - expected_duration)
 
             if diff > _DURATION_WARNING_SECONDS:
                 raise AudioDurationMismatchError(
                     detail=(
                         f"Downloaded {position} duration ({file_duration:.1f}s) "
-                        f"differs from Spotify metadata ({spotify_duration:.1f}s) "
+                        f"differs from {self._provider_name} metadata ({expected_duration:.1f}s) "
                         f"by {diff:.1f}s."
                     )
                 )
             if diff > _DURATION_TOLERANCE_SECONDS:
                 logger.warning(
-                    "Duration mismatch for %s: file=%.1fs vs spotify=%.1fs (diff=%.1fs)",
+                    "Duration mismatch for %s: file=%.1fs vs %s=%.1fs (diff=%.1fs)",
                     position,
                     file_duration,
-                    spotify_duration,
+                    self._provider_name.lower(),
+                    expected_duration,
                     diff,
                 )
         except AudioDurationMismatchError:
@@ -265,4 +278,5 @@ class SpotifyAnalysisService:
             logger.warning("Failed to clean up temporary file: %s", acquired.local_path)
 
 
-spotify_analysis_service = SpotifyAnalysisService()
+SpotifyAnalysisService = RemoteTrackAnalysisService
+spotify_analysis_service = RemoteTrackAnalysisService()

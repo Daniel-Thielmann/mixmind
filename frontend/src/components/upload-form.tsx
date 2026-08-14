@@ -2,7 +2,7 @@
 
 import { useCallback, useEffect, useState } from "react";
 import { motion, AnimatePresence } from "framer-motion";
-import { ArrowRight, CirclePlay as Youtube, FileAudio, Music, Upload } from "lucide-react";
+import { ArrowRight, CirclePlay as Youtube, FileAudio, LockKeyhole, Music, Upload } from "lucide-react";
 
 import { AuthDialog } from "@/components/auth/AuthDialog";
 import { Dashboard } from "@/components/home/dashboard";
@@ -36,7 +36,7 @@ type InputMode = "manual" | "spotify" | "youtube";
 
 export function UploadForm() {
   const { isAuthenticated, loading: authLoading } = useAuth();
-  const [mode, setMode] = useState<InputMode>("manual");
+  const [mode, setMode] = useState<InputMode>("youtube");
 
   const [trackA, setTrackA] = useState<File>();
   const [trackB, setTrackB] = useState<File>();
@@ -178,7 +178,7 @@ export function UploadForm() {
   const canAnalyze =
     mode === "manual"
       ? !!trackA && !!trackB
-      : mode === "spotify" ? !!spotifyTrackA && !!spotifyTrackB : !!youtubeTrackA && !!youtubeTrackB;
+      : mode === "spotify" ? false : !!youtubeTrackA && !!youtubeTrackB;
 
   const missingSelectionCopy = mode === "manual"
     ? !trackA && !trackB
@@ -186,11 +186,9 @@ export function UploadForm() {
       : !trackA
         ? "Add Track A to continue"
         : "Add Track B to continue"
-    : mode === "spotify" && !spotifyTrackA && !spotifyTrackB
-      ? "Select Track A and Track B"
-      : mode === "spotify" && !spotifyTrackA
-        ? "Select Track A to continue"
-        : mode === "spotify" ? "Select Track B to continue" : !youtubeTrackA && !youtubeTrackB ? "Select Track A and Track B" : !youtubeTrackA ? "Select Track A to continue" : "Select Track B to continue";
+    : mode === "spotify"
+      ? "Spotify integration requires Pro"
+      : !youtubeTrackA && !youtubeTrackB ? "Select Track A and Track B" : !youtubeTrackA ? "Select Track A to continue" : "Select Track B to continue";
 
   return (
     <section className="mt-12 w-full">
@@ -257,10 +255,10 @@ export function UploadForm() {
               >
                 <Music className={`h-6 w-6 ${mode === "spotify" ? "text-[#1DB954]" : "text-text-secondary"}`} />
                 <span className="flex-1">
-                  <span className="block text-sm font-semibold text-text">Choose from Spotify</span>
-                  <span className="mt-1 block text-xs text-text-secondary">Select two tracks without downloading MP3 files</span>
+                  <span className="flex items-center gap-2 text-sm font-semibold text-text">Choose from Spotify <span className="rounded-full bg-amber-300/10 px-2 py-0.5 text-[9px] font-bold uppercase text-amber-200">Pro</span></span>
+                  <span className="mt-1 block text-xs text-text-secondary">Available to approved Pro accounts</span>
                 </span>
-                <ArrowRight className="h-4 w-4 text-text-tertiary" />
+                <LockKeyhole className="h-4 w-4 text-amber-200" />
               </button>
               </div>
             </div>
@@ -279,11 +277,11 @@ export function UploadForm() {
                 />
               </div>
             ) : !isAuthenticated ? (
-              <div className="rounded-2xl border border-[#1DB954]/20 bg-[#1DB954]/5 p-6 text-center">
-                <Music className="mx-auto h-8 w-8 text-[#1DB954]" />
+              <div className={`rounded-2xl border p-6 text-center ${mode === "youtube" ? "border-red-500/20 bg-red-500/5" : "border-[#1DB954]/20 bg-[#1DB954]/5"}`}>
+                {mode === "youtube" ? <Youtube className="mx-auto h-8 w-8 text-red-500" /> : <Music className="mx-auto h-8 w-8 text-[#1DB954]" />}
                 <h2 className="mt-4 text-lg font-semibold text-text">Sign in to use {mode === "spotify" ? "Spotify" : "YouTube"}</h2>
                 <p className="mx-auto mt-2 max-w-xl text-sm leading-6 text-text-secondary">
-                  Sign in, connect your Spotify account and choose two tracks directly from your library. Your destination will be preserved.
+                  {mode === "youtube" ? "Sign in to search YouTube and select two tracks for analysis. Your destination will be preserved." : "Spotify access is available to approved Pro accounts."}
                 </p>
               </div>
             ) : mode === "spotify" ? (

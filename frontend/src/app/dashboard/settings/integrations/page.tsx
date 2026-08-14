@@ -13,7 +13,7 @@ export default async function IntegrationsPage() {
             Integrations
           </h1>
           <p className="mt-1 text-text-secondary">
-            Connect your accounts to import music and enhance your analysis.
+            Manage catalog access and music sources for your analyses.
           </p>
         </div>
 

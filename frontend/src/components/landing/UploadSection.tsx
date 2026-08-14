@@ -19,7 +19,7 @@ export function UploadSection() {
             <AudioLines size={25} />
           </div>
           <span className="mb-4 inline-block text-xs font-semibold uppercase tracking-[0.25em] text-primary">
-            New — Spotify integration
+            New — YouTube search
           </span>
           <h2 className="text-3xl font-bold tracking-tight md:text-5xl">
             MixMind{" "}
@@ -28,10 +28,10 @@ export function UploadSection() {
             </span>
           </h2>
           <p className="mx-auto mt-5 max-w-xl text-base leading-relaxed text-text-secondary md:text-lg">
-            Connect Spotify and select two tracks without downloading MP3 files, or upload your own audio. Both paths use the same MixMind transition pipeline.
+            Search YouTube and select two tracks, or upload your own audio files. Both paths use the same MixMind transition pipeline.
           </p>
           <div className="mt-9 flex flex-col justify-center gap-3 [perspective:900px] sm:flex-row">
-            <DepthCard index={0}><Button asChild size="lg"><a href="/analyzer?source=spotify"><Music size={17} /> Try with Spotify <ArrowRight size={17} /></a></Button></DepthCard>
+            <DepthCard index={0}><Button asChild size="lg"><a href="/analyzer?source=youtube"><Music size={17} /> Try with YouTube <ArrowRight size={17} /></a></Button></DepthCard>
             <DepthCard index={1}><Button asChild size="lg" variant="outline"><a href="/analyzer?source=manual"><Upload size={17} /> Upload audio files</a></Button></DepthCard>
           </div>
         </ScrollReveal3D>
