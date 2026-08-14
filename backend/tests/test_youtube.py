@@ -8,7 +8,10 @@ from pydantic import ValidationError
 
 from app.application.dto.youtube import YouTubeAnalysisRequest
 from app.infrastructure.youtube.api_client import _duration_ms
-from app.infrastructure.youtube.rapidapi_downloader import _extract_url
+from app.infrastructure.youtube.rapidapi_downloader import (
+    _extract_url,
+    _retry_delay_seconds,
+)
 
 
 def test_youtube_request_requires_distinct_valid_video_ids() -> None:
@@ -44,3 +47,16 @@ def test_provider_response_url_shapes(payload, expected) -> None:
     response.text = payload if isinstance(payload, str) else ""
     response.json.return_value = payload
     assert _extract_url(response) == expected
+
+
+def test_provider_retry_delay_honors_retry_after_with_cap() -> None:
+    response = MagicMock(spec=httpx.Response)
+    response.headers = {"Retry-After": "45"}
+    assert _retry_delay_seconds(response, 0) == 20.0
+
+
+def test_provider_retry_delay_uses_bounded_backoff() -> None:
+    response = MagicMock(spec=httpx.Response)
+    response.headers = {}
+    assert _retry_delay_seconds(response, 0) == 3.0
+    assert _retry_delay_seconds(response, 4) == 10.0

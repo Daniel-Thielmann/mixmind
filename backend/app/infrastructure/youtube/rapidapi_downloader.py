@@ -1,7 +1,10 @@
 from __future__ import annotations
 
 import hashlib
+import logging
 import secrets
+import threading
+import time
 from pathlib import Path
 from urllib.parse import urlparse
 
@@ -11,10 +14,16 @@ from app.core.config import settings
 from app.core.exceptions import (
     AudioDownloadTooLargeError,
     AudioProviderUnavailableError,
+    ExternalProviderRateLimitError,
     InvalidDownloadedAudioError,
 )
 from app.domain.value_objects.acquired_audio import AcquiredAudio
 from app.domain.value_objects.spotify_track import SpotifyTrackMetadata
+
+logger = logging.getLogger(__name__)
+
+_provider_lock = threading.Lock()
+_MAX_CONVERSION_ATTEMPTS = 3
 
 
 class RapidApiYouTubeDownloader:
@@ -23,6 +32,13 @@ class RapidApiYouTubeDownloader:
         self._max_size = settings.RAPIDAPI_DOWNLOAD_MAX_SIZE * 1024 * 1024
 
     def acquire(self, metadata: SpotifyTrackMetadata) -> AcquiredAudio:
+        # The provider's entry-level plans reject concurrent conversions. The
+        # shared analysis service may download in parallel, so serialize only
+        # this provider without slowing down providers that support concurrency.
+        with _provider_lock:
+            return self._acquire_locked(metadata)
+
+    def _acquire_locked(self, metadata: SpotifyTrackMetadata) -> AcquiredAudio:
         key = settings.RAPIDAPI_YOUTUBE_MP3_KEY
         if not key:
             raise AudioProviderUnavailableError(
@@ -33,17 +49,7 @@ class RapidApiYouTubeDownloader:
             "x-rapidapi-host": settings.RAPIDAPI_YOUTUBE_MP3_HOST,
             "Content-Type": "application/json",
         }
-        try:
-            response = httpx.get(
-                settings.RAPIDAPI_YOUTUBE_MP3_BASE_URL.rstrip("/") + "/download/mp3",
-                params={"url": metadata.spotify_url},
-                headers=headers,
-                timeout=settings.RAPIDAPI_YOUTUBE_MP3_TIMEOUT,
-            )
-        except httpx.HTTPError as exc:
-            raise AudioProviderUnavailableError(
-                detail="YouTube conversion provider is unavailable."
-            ) from exc
+        response = self._request_conversion(metadata.spotify_url, headers)
         if response.status_code != 200:
             raise AudioProviderUnavailableError(
                 detail=f"YouTube conversion provider returned status {response.status_code}."
@@ -94,6 +100,44 @@ class RapidApiYouTubeDownloader:
             original_filename=f"{metadata.spotify_id}.mp3",
         )
 
+    def _request_conversion(
+        self, video_url: str, headers: dict[str, str]
+    ) -> httpx.Response:
+        endpoint = settings.RAPIDAPI_YOUTUBE_MP3_BASE_URL.rstrip("/") + "/download/mp3"
+        for attempt in range(_MAX_CONVERSION_ATTEMPTS):
+            try:
+                response = httpx.get(
+                    endpoint,
+                    params={"url": video_url},
+                    headers=headers,
+                    timeout=settings.RAPIDAPI_YOUTUBE_MP3_TIMEOUT,
+                )
+            except httpx.HTTPError as exc:
+                raise AudioProviderUnavailableError(
+                    detail="YouTube conversion provider is unavailable."
+                ) from exc
+
+            if response.status_code != 429:
+                return response
+            if attempt + 1 >= _MAX_CONVERSION_ATTEMPTS:
+                raise ExternalProviderRateLimitError(
+                    detail=(
+                        "YouTube audio provider is busy. Wait a moment and try again."
+                    )
+                )
+
+            delay = _retry_delay_seconds(response, attempt)
+            logger.warning(
+                "YouTube provider rate limited conversion; retrying in %.1fs "
+                "(attempt %d/%d)",
+                delay,
+                attempt + 2,
+                _MAX_CONVERSION_ATTEMPTS,
+            )
+            time.sleep(delay)
+
+        raise AssertionError("conversion retry loop exhausted")
+
 
 def _extract_url(response: httpx.Response) -> str:
     text = response.text.strip().strip('"')
@@ -108,3 +152,13 @@ def _extract_url(response: httpx.Response) -> str:
     except ValueError:
         pass
     return text
+
+
+def _retry_delay_seconds(response: httpx.Response, attempt: int) -> float:
+    try:
+        retry_after = float(response.headers.get("Retry-After", ""))
+        if retry_after > 0:
+            return min(retry_after, 20.0)
+    except (TypeError, ValueError):
+        pass
+    return min(3.0 * (attempt + 1), 10.0)
